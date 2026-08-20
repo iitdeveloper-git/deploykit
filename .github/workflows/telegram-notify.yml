@@ -46,14 +46,22 @@ jobs:
     steps:
       - name: Dispatch Telegram Notification
         shell: bash
+        env:
+          STATUS: ${{ inputs.status }}
+          APP: ${{ inputs.app_name }}
+          ENV: ${{ inputs.environment }}
+          TAG: ${{ inputs.release_tag }}
+          URL: ${{ inputs.app_url }}
+          CUSTOM: ${{ inputs.custom_message }}
+          THREAD_ID: ${{ inputs.message_thread_id }}
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GH_ACTOR: ${{ github.actor }}
+          GH_SERVER_URL: ${{ github.server_url }}
+          GH_REPO: ${{ github.repository }}
+          GH_SHA: ${{ github.sha }}
+          GH_RUN_ID: ${{ github.run_id }}
         run: |
-          STATUS="${{ inputs.status }}"
-          APP="${{ inputs.app_name }}"
-          ENV="${{ inputs.environment }}"
-          TAG="${{ inputs.release_tag }}"
-          URL="${{ inputs.app_url }}"
-          CUSTOM="${{ inputs.custom_message }}"
-          THREAD_ID="${{ inputs.message_thread_id }}"
           if [ "$STATUS" = "success" ]; then
             HEADER_EMOJI="🚀"
             STATUS_LABEL="Deployment Succeeded"
@@ -67,29 +75,29 @@ jobs:
             STATUS_LABEL="Deployment Failed"
             ENV_EMOJI="🔴"
           fi
-          MSG="<b>$HEADER_EMOJI $APP — $STATUS_LABEL</b>%0A%0A"
-          MSG+="🏷 <b>Environment:</b> $ENV_EMOJI $ENV%0A"
+          MSG="<b>${HEADER_EMOJI} ${APP} — ${STATUS_LABEL}</b>%0A%0A"
+          MSG+="🏷 <b>Environment:</b> ${ENV_EMOJI} ${ENV}%0A"
           if [ -n "$TAG" ]; then
-            MSG+="📦 <b>Release:</b> <code>$TAG</code>%0A"
+            MSG+="📦 <b>Release:</b> <code>${TAG}</code>%0A"
           fi
-          MSG+="👤 <b>Triggered By:</b> ${{ github.actor }}%0A"
-          MSG+="🔗 <b>Commit:</b> <a href=\"${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}\">${{ github.sha }}</a>%0A"
+          MSG+="👤 <b>Triggered By:</b> ${GH_ACTOR}%0A"
+          MSG+="🔗 <b>Commit:</b> <a href=\"${GH_SERVER_URL}/${GH_REPO}/commit/${GH_SHA}\">${GH_SHA}</a>%0A"
           if [ -n "$URL" ]; then
-            MSG+="🌐 <b>Live URL:</b> <a href=\"$URL\">$URL</a>%0A"
+            MSG+="🌐 <b>Live URL:</b> <a href=\"${URL}\">${URL}</a>%0A"
           fi
           if [ -n "$CUSTOM" ]; then
-            MSG+="%0A📝 <i>$CUSTOM</i>%0A"
+            MSG+="%0A📝 <i>${CUSTOM}</i>%0A"
           fi
-          MSG+="%0A📊 <a href=\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\">View GitHub Actions Run</a>"
+          MSG+="%0A📊 <a href=\"${GH_SERVER_URL}/${GH_REPO}/actions/runs/${GH_RUN_ID}\">View GitHub Actions Run</a>"
           CURL_ARGS=(
-            -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage"
-            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}"
+            -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage"
+            -d "chat_id=${CHAT_ID}"
             -d "parse_mode=HTML"
-            -d "text=$MSG"
+            -d "text=${MSG}"
             -d "disable_web_page_preview=true"
           )
           if [ -n "$THREAD_ID" ]; then
-            CURL_ARGS+=(-d "message_thread_id=$THREAD_ID")
+            CURL_ARGS+=(-d "message_thread_id=${THREAD_ID}")
           fi
           RESPONSE=$(curl "${CURL_ARGS[@]}")
 
