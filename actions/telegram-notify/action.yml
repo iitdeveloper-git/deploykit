@@ -16,7 +16,7 @@ inputs:
     description: 'Application / Project Name (e.g. Growixa)'
     required: true
   environment:
-    description: 'Deployment Environment (e.g. Production, UAT, Staging)'
+    description: 'Deployment Environment (e.g. Production, UAT, CI / Tests)'
     required: true
   status:
     description: 'Job / Deployment Status (success, failure, cancelled)'
@@ -64,18 +64,36 @@ runs:
         BOT_TOKEN="${INPUT_BOT_TOKEN}"
         CHAT_ID="${INPUT_CHAT_ID}"
 
+        # Determine context (CI vs Deployment)
+        IS_CI=false
+        case "$ENV" in
+          *"CI"*|*"Test"*|*"Build"*|*"Lint"*)
+            IS_CI=true
+            ;;
+        esac
+
         if [ "$STATUS" = "success" ]; then
           HEADER_EMOJI="🚀"
-          STATUS_LABEL="Deployment Succeeded"
-          ENV_EMOJI="🟢"
+          if [ "$IS_CI" = "true" ]; then
+            STATUS_LABEL="CI Pipeline Passed"
+            ENV_EMOJI="🟢"
+          else
+            STATUS_LABEL="Deployment Succeeded"
+            ENV_EMOJI="🟢"
+          fi
         elif [ "$STATUS" = "cancelled" ]; then
           HEADER_EMOJI="⚪️"
-          STATUS_LABEL="Deployment Cancelled"
+          STATUS_LABEL="Run Cancelled"
           ENV_EMOJI="⚪️"
         else
           HEADER_EMOJI="❌"
-          STATUS_LABEL="Deployment Failed"
-          ENV_EMOJI="🔴"
+          if [ "$IS_CI" = "true" ]; then
+            STATUS_LABEL="CI / Test Suite Failed"
+            ENV_EMOJI="🔴"
+          else
+            STATUS_LABEL="Deployment Failed"
+            ENV_EMOJI="🔴"
+          fi
         fi
 
         MSG="<b>${HEADER_EMOJI} ${APP} — ${STATUS_LABEL}</b>%0A%0A"
