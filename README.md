@@ -1,74 +1,137 @@
-# Shared CI/CD Workflows & Actions (`iitdeveloper-git`)
+<p align="center">
+  <img src=".github/assets/banner.jpg" alt="shared-workflows banner" width="100%" />
+</p>
 
-Centralized, reusable GitHub Actions and workflows for all `iitdeveloper-git` projects.
+<p align="center">
+  <a href="https://github.com/iitdeveloper-git/shared-workflows/actions">
+    <img src="https://img.shields.io/badge/GitHub_Actions-Reusable-2088FF?style=for-the-badge&logo=githubactions&logoColor=white" alt="GitHub Actions" />
+  </a>
+  <a href="https://core.telegram.org/bots/api">
+    <img src="https://img.shields.io/badge/Telegram_Bot_API-v7-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Bot API" />
+  </a>
+  <img src="https://img.shields.io/badge/Shell-Bash-4EAA25?style=for-the-badge&logo=gnubash&logoColor=white" alt="Bash" />
+  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT License" />
+</p>
+
+<p align="center">
+  <b>Centralized, reusable GitHub Actions workflows & composite actions for all <code>iitdeveloper-git</code> projects.</b><br/>
+  Drop-in Telegram deployment notifications — rich HTML messages, zero duplication.
+</p>
 
 ---
 
-## 📱 Telegram Release & Deployment Notification
+## ✨ What You Get
 
-### Method A: Composite Action (Recommended for existing jobs)
+When a deployment runs, your Telegram group gets an instant message like this:
 
-Add this step to the end of your deployment job in any project repository:
+```
+🚀 Growixa — Deployment Succeeded
+
+🏷 Environment:  🟢 Production
+📦 Release:      v2.4.1
+👤 Triggered By: ravi
+🔗 Commit:       a3f8c91
+🌐 Live URL:     https://growixa.iitdeveloper.com
+
+📝 Hotfix: resolved checkout session timeout issue
+
+📊 View GitHub Actions Run →
+```
+
+> Supports `success` 🟢 · `failure` 🔴 · `cancelled` ⚪️ — automatically.
+
+---
+
+## 🚀 Quick Start
+
+### Method A — Composite Action *(Recommended for existing jobs)*
+
+Add a single step to the end of your deployment job:
 
 ```yaml
-      - name: Send Telegram Notification
+      - name: 📢 Send Telegram Notification
         if: always()
         uses: iitdeveloper-git/shared-workflows/actions/telegram-notify@main
         with:
-          bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          chat_id: ${{ secrets.TELEGRAM_CHAT_ID }}
-          app_name: 'Growixa'
-          environment: 'Production' # or 'UAT / Staging'
-          status: ${{ job.status }} # passes 'success' or 'failure'
-          release_tag: ${{ steps.vars.outputs.tag }}
-          app_url: 'https://growixa.iitdeveloper.com'
+          bot_token:    ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat_id:      ${{ secrets.TELEGRAM_CHAT_ID }}
+          app_name:     'Growixa'
+          environment:  'Production'
+          status:       ${{ job.status }}
+          release_tag:  ${{ steps.vars.outputs.tag }}
+          app_url:      'https://growixa.iitdeveloper.com'
 ```
 
-### Method B: Reusable Workflow (`workflow_call`)
+---
 
-Call the notification workflow as a separate job:
+### Method B — Reusable Workflow *(workflow_call)*
+
+Call it as a standalone job after your deploy completes:
 
 ```yaml
   notify:
-    name: Telegram Notification
+    name: 📢 Telegram Notification
     needs: [deploy]
     if: always()
     uses: iitdeveloper-git/shared-workflows/.github/workflows/telegram-notify.yml@main
     with:
-      app_name: 'Growixa'
-      environment: 'Production'
-      status: ${{ needs.deploy.result }}
-      release_tag: ${{ needs.deploy.outputs.tag }}
-      app_url: 'https://growixa.iitdeveloper.com'
+      app_name:      'Growixa'
+      environment:   'Production'
+      status:        ${{ needs.deploy.result }}
+      release_tag:   ${{ needs.deploy.outputs.tag }}
+      app_url:       'https://growixa.iitdeveloper.com'
     secrets:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
 ```
 
 ---
 
-## 🔑 Required Secrets Setup
+## 🔑 One-Time Secrets Setup
 
-To avoid adding secrets to each repo manually, configure them once at the **Organization Level**:
+Configure secrets **once** at the Organization level — all repos inherit them automatically.
 
-1. Go to **Organization Settings** ➔ **Secrets and variables** ➔ **Actions**.
-2. Add the following repository secrets:
-   - `TELEGRAM_BOT_TOKEN`: Bot token from `@BotFather`
-   - `TELEGRAM_CHAT_ID`: Telegram Group/Channel ID (e.g. `-1001234567890`)
-3. Select **Repository access** ➔ **All repositories**.
+| Step | Where to go |
+|------|-------------|
+| 1️⃣ | **Organization Settings** → **Secrets and variables** → **Actions** |
+| 2️⃣ | Add `TELEGRAM_BOT_TOKEN` — get from [@BotFather](https://t.me/BotFather) |
+| 3️⃣ | Add `TELEGRAM_CHAT_ID` — your group/channel ID (e.g. `-1001234567890`) |
+| 4️⃣ | Set **Repository access** → **All repositories** ✅ |
 
 ---
 
-## 📋 Action Inputs Reference
+## 📋 Inputs Reference
 
 | Input | Required | Default | Description |
-|---|---|---|---|
-| `bot_token` / `TELEGRAM_BOT_TOKEN` | Yes | — | Telegram Bot HTTP API Token |
-| `chat_id` / `TELEGRAM_CHAT_ID` | Yes | — | Target Group/Channel Chat ID |
-| `app_name` | Yes | — | Name of application (e.g. Growixa) |
-| `environment` | Yes | — | Production, UAT, Staging |
-| `status` | Yes | — | `success`, `failure`, or `cancelled` |
-| `release_tag` | No | `""` | Release tag or version number |
-| `app_url` | No | `""` | Live URL of the deployed application |
-| `custom_message` | No | `""` | Additional notes or release message |
-| `message_thread_id` | No | `""` | Telegram topic ID (if using group topics) |
+|---|:---:|---|---|
+| `bot_token` | ✅ | — | Telegram Bot HTTP API Token |
+| `chat_id` | ✅ | — | Target Group/Channel Chat ID |
+| `app_name` | ✅ | — | Application name (e.g. `Growixa`) |
+| `environment` | ✅ | — | `Production`, `UAT`, `Staging` |
+| `status` | ✅ | — | `success` · `failure` · `cancelled` |
+| `release_tag` | ➖ | `""` | Version tag (e.g. `v1.0.0`) |
+| `app_url` | ➖ | `""` | Live URL of the deployed app |
+| `custom_message` | ➖ | `""` | Extra release notes or custom text |
+| `message_thread_id` | ➖ | `""` | Telegram topic ID (for forum groups) |
+
+---
+
+## 📁 Repository Structure
+
+```
+shared-workflows/
+├── .github/
+│   ├── assets/
+│   │   └── banner.jpg
+│   └── workflows/
+│       └── telegram-notify.yml   # Reusable workflow (workflow_call)
+└── actions/
+    └── telegram-notify/
+        └── action.yml            # Composite action
+```
+
+---
+
+<p align="center">
+  Built with ❤️ by <a href="https://github.com/iitdeveloper-git"><b>iitdeveloper-git</b></a>
+</p>
