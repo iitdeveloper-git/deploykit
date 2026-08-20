@@ -1,0 +1,95 @@
+name: 'Telegram Release & Deployment Notifier'
+description: 'Send standardized, rich Telegram notifications for deployments, CI/CD runs, and releases'
+author: 'iitdeveloper-git'
+inputs:
+  bot_token:
+    description: 'Telegram Bot Token from @BotFather'
+    required: true
+  chat_id:
+    description: 'Telegram Group/Channel Chat ID (e.g. -100xxxxxxxxxx)'
+    required: true
+  message_thread_id:
+    description: 'Telegram Topic / Thread ID (for Supergroups with topics enabled)'
+    required: false
+    default: ''
+  app_name:
+    description: 'Application / Project Name (e.g. Growixa)'
+    required: true
+  environment:
+    description: 'Deployment Environment (e.g. Production, UAT, Staging)'
+    required: true
+  status:
+    description: 'Job / Deployment Status (success, failure, cancelled)'
+    required: true
+  release_tag:
+    description: 'Release Tag or Version (e.g. v1.0.0)'
+    required: false
+    default: ''
+  app_url:
+    description: 'Live Application URL (e.g. https://growixa.iitdeveloper.com)'
+    required: false
+    default: ''
+  custom_message:
+    description: 'Optional custom release notes or description'
+    required: false
+    default: ''
+runs:
+  using: "composite"
+  steps:
+    - name: Send Notification via Telegram Bot API
+      shell: bash
+      run: |
+        STATUS="${{ inputs.status }}"
+        APP="${{ inputs.app_name }}"
+        ENV="${{ inputs.environment }}"
+        TAG="${{ inputs.release_tag }}"
+        URL="${{ inputs.app_url }}"
+        CUSTOM="${{ inputs.custom_message }}"
+        THREAD_ID="${{ inputs.message_thread_id }}"
+        # Status badge & emoji
+        if [ "$STATUS" = "success" ]; then
+          HEADER_EMOJI="🚀"
+          STATUS_LABEL="Deployment Succeeded"
+          ENV_EMOJI="🟢"
+        elif [ "$STATUS" = "cancelled" ]; then
+          HEADER_EMOJI="⚪️"
+          STATUS_LABEL="Deployment Cancelled"
+          ENV_EMOJI="⚪️"
+        else
+          HEADER_EMOJI="❌"
+          STATUS_LABEL="Deployment Failed"
+          ENV_EMOJI="🔴"
+        fi
+        # Build HTML Message
+        MSG="<b>$HEADER_EMOJI $APP — $STATUS_LABEL</b>%0A%0A"
+        MSG+="🏷 <b>Environment:</b> $ENV_EMOJI $ENV%0A"
+        if [ -n "$TAG" ]; then
+          MSG+="📦 <b>Release:</b> <code>$TAG</code>%0A"
+        fi
+        MSG+="👤 <b>Triggered By:</b> ${{ github.actor }}%0A"
+        MSG+="🔗 <b>Commit:</b> <a href=\"${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}\">${{ github.sha }}</a>%0A"
+        if [ -n "$URL" ]; then
+          MSG+="🌐 <b>Live URL:</b> <a href=\"$URL\">$URL</a>%0A"
+        fi
+        if [ -n "$CUSTOM" ]; then
+          MSG+="%0A📝 <i>$CUSTOM</i>%0A"
+        fi
+        MSG+="%0A📊 <a href=\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\">View GitHub Actions Run</a>"
+        # Prepare curl payload
+        CURL_ARGS=(
+          -s -X POST "https://api.telegram.org/bot${{ inputs.bot_token }}/sendMessage"
+          -d "chat_id=${{ inputs.chat_id }}"
+          -d "parse_mode=HTML"
+          -d "text=$MSG"
+          -d "disable_web_page_preview=true"
+        )
+        if [ -n "$THREAD_ID" ]; then
+          CURL_ARGS+=(-d "message_thread_id=$THREAD_ID")
+        fi
+        RESPONSE=$(curl "${CURL_ARGS[@]}")
+
+        if echo "$RESPONSE" | grep -q '"ok":true'; then
+          echo "✅ Telegram notification sent successfully."
+        else
+          echo "⚠️ Telegram API returned error: $RESPONSE"
+        fi
