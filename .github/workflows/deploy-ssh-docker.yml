@@ -14,7 +14,7 @@ on:
         type: string
         default: ''
       service-name:
-        description: 'Docker Compose service name to update (optional; updates all if omitted)'
+        description: 'Docker Compose service name to update (required when rollback-on-failure is true)'
         required: false
         type: string
         default: ''
@@ -49,7 +49,7 @@ on:
         type: number
         default: 5
       rollback-on-failure:
-        description: 'Whether to rollback to previous state if health check fails'
+        description: 'Whether to rollback to previous state if health check fails (requires service-name)'
         required: false
         type: boolean
         default: true
@@ -102,6 +102,7 @@ jobs:
           SSH_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
           REG_URL: ${{ secrets.REGISTRY_URL || 'ghcr.io' }}
           REG_USER: ${{ secrets.REGISTRY_USERNAME || '' }}
+          ROLLBACK: ${{ inputs.rollback-on-failure }}
         run: |
           PORT_REGEX='^[0-9]+$'
           SERVICE_REGEX='^[-A-Za-z0-9._]*$'
@@ -120,6 +121,12 @@ jobs:
           # Validate Service Name
           if [[ ! "$SERVICE" =~ $SERVICE_REGEX ]]; then
             echo "❌ DeployKit Security Error: Invalid service name: $SERVICE"
+            exit 1
+          fi
+
+          # Validate service-name requirement for rollback-on-failure
+          if [ "$ROLLBACK" = "true" ] && [ -z "$SERVICE" ]; then
+            echo "❌ DeployKit Validation Error: 'service-name' must be specified when 'rollback-on-failure' is true (rollback is deterministic and service-scoped)."
             exit 1
           fi
 
@@ -189,27 +196,17 @@ jobs:
             echo "$REG_PASS" | $SSH_CMD "docker login '${REG_URL}' -u '${REG_USER:-$SSH_USER}' --password-stdin"
           fi
 
-          # Capture pre-deploy container and image state using docker inspect (portable & exact)
+          # Capture exact pre-deploy image ID using docker inspect
           echo "📸 Capturing current container state for rollback guard..."
           CONTAINER_ID=$($SSH_CMD "cd '${COMPOSE_DIR}' && docker compose -f '${COMPOSE_FILE}' ps -q ${SERVICE} 2>/dev/null | head -n1 || echo ''")
           PREV_IMAGE_ID=""
-          PREV_IMAGE_REF=""
-          PREV_TAG=""
 
           if [ -n "$CONTAINER_ID" ]; then
             PREV_IMAGE_ID=$($SSH_CMD "docker inspect --format '{{.Image}}' '${CONTAINER_ID}' 2>/dev/null || echo ''")
-            PREV_IMAGE_REF=$($SSH_CMD "docker inspect --format '{{.Config.Image}}' '${CONTAINER_ID}' 2>/dev/null || echo ''")
-            if [ -n "$PREV_IMAGE_REF" ]; then
-              if [[ "$PREV_IMAGE_REF" == *":"* ]]; then
-                PREV_TAG="${PREV_IMAGE_REF##*:}"
-              else
-                PREV_TAG="$PREV_IMAGE_REF"
-              fi
+            if [ -n "$PREV_IMAGE_ID" ] && [ -n "$SERVICE" ]; then
+              $SSH_CMD "docker tag '${PREV_IMAGE_ID}' 'deploykit-rollback:${SERVICE}'"
+              echo "📸 Captured running image ID ${PREV_IMAGE_ID:0:19} as deploykit-rollback:${SERVICE}"
             fi
-            echo "Previous container: ${CONTAINER_ID:0:12}"
-            echo "Previous image ID: ${PREV_IMAGE_ID:-unknown}"
-            echo "Previous image Ref: ${PREV_IMAGE_REF:-unknown}"
-            echo "Previous tag: ${PREV_TAG:-latest}"
           else
             echo "ℹ️ No existing running container detected for service ${SERVICE:-all} prior to deployment."
           fi
@@ -240,22 +237,29 @@ jobs:
               echo "❌ Health check failed after ${RETRIES} attempts."
 
               if [ "$ROLLBACK" = "true" ]; then
-                echo "⚠️ DeployKit: Initiating automatic rollback..."
-                if [ -n "$CONTAINER_ID" ] && [ -n "$PREV_IMAGE_ID" ]; then
-                  echo "Restoring previous running version (Tag: ${PREV_TAG:-latest}, Image: ${PREV_IMAGE_ID:0:12})..."
-                  $SSH_CMD "cd '${COMPOSE_DIR}' && \
-                    export IMAGE_TAG='${PREV_TAG:-latest}' && \
-                    export APP_VERSION='${PREV_TAG:-latest}' && \
-                    docker compose -f '${COMPOSE_FILE}' up -d --remove-orphans ${SERVICE}"
+                echo "⚠️ DeployKit: Initiating exact image rollback via Compose override..."
+                if [ -n "$CONTAINER_ID" ] && [ -n "$PREV_IMAGE_ID" ] && [ -n "$SERVICE" ]; then
+                  OVERRIDE_FILE="docker-compose.deploykit-rollback.${SERVICE}.yml"
+                  echo "Generating temporary Compose override ${OVERRIDE_FILE} pinning image to deploykit-rollback:${SERVICE} (${PREV_IMAGE_ID:0:19})..."
+                  $SSH_CMD "cat << 'EOF' > '${COMPOSE_DIR}/${OVERRIDE_FILE}'
+          services:
+            ${SERVICE}:
+              image: deploykit-rollback:${SERVICE}
+          EOF"
+
+                  echo "Restoring previous running container state with Compose override..."
+                  $SSH_CMD "cd '${COMPOSE_DIR}' && docker compose -f '${COMPOSE_FILE}' -f '${OVERRIDE_FILE}' up -d --remove-orphans ${SERVICE}"
 
                   echo "🔄 Rollback dispatched. Verifying rollback health..."
                   sleep "$DELAY"
                   ROLLBACK_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" || echo "000")
                   if [ "$ROLLBACK_CODE" -ge 200 ] && [ "$ROLLBACK_CODE" -lt 400 ]; then
-                    echo "✅ DeployKit: Rollback succeeded and verified healthy (HTTP ${ROLLBACK_CODE}). Original deployment failed."
+                    echo "✅ DeployKit: Exact image rollback succeeded and verified healthy (HTTP ${ROLLBACK_CODE}). Original deployment failed."
                   else
-                    echo "❌ DeployKit: Rollback also failed health check (HTTP ${ROLLBACK_CODE})."
+                    echo "❌ DeployKit: Exact image rollback also failed health check (HTTP ${ROLLBACK_CODE})."
                   fi
+
+                  $SSH_CMD "rm -f '${COMPOSE_DIR}/${OVERRIDE_FILE}'"
                 else
                   echo "❌ DeployKit Rollback Error: Cannot rollback because no previous running container or image state was present before deployment."
                 fi
@@ -270,6 +274,17 @@ jobs:
           $SSH_CMD "docker image prune -f" || true
           echo "✅ Remote Docker Compose update verified and completed."
 
-      - name: Cleanup SSH Keys
+      - name: Cleanup SSH Keys & Rollback Overrides
         if: always()
-        run: rm -f ~/.ssh/deploy_key
+        env:
+          SSH_HOST: ${{ secrets.DEPLOY_HOST }}
+          SSH_USER: ${{ secrets.DEPLOY_USER }}
+          SSH_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+          COMPOSE_DIR: ${{ inputs.compose-directory }}
+          SERVICE: ${{ inputs.service-name }}
+        run: |
+          if [ -f ~/.ssh/deploy_key ] && [ -n "$SSH_HOST" ] && [ -n "$SSH_USER" ] && [ -n "$SERVICE" ]; then
+            SSH_CMD="ssh -i ~/.ssh/deploy_key -p ${SSH_PORT} -o StrictHostKeyChecking=yes ${SSH_USER}@${SSH_HOST}"
+            $SSH_CMD "rm -f '${COMPOSE_DIR}/docker-compose.deploykit-rollback.${SERVICE}.yml'" 2>/dev/null || true
+          fi
+          rm -f ~/.ssh/deploy_key

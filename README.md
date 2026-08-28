@@ -245,7 +245,7 @@ jobs:
       DEPLOY_SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
 ```
 
-> **Docker Compose Contract:** The workflow exports `IMAGE_TAG` and `APP_VERSION` environment variables to `docker compose`. Compose files can reference `image: ghcr.io/org/repo:${IMAGE_TAG}` or `image: ${IMAGE_TAG}`. Before deployment, the running container's image ID and tag are captured via `docker inspect`. If health verification fails and `rollback-on-failure: true`, DeployKit restores the exact previous running tag/image and re-verifies health.
+> **Docker Compose Contract & Exact Image Rollback:** DeployKit supports all standard Compose configurations including `image: repo/app:${IMAGE_TAG}`, `image: ${IMAGE_TAG}`, and hardcoded image references. Before deployment, the running container's immutable image ID (`sha256:...`) is captured via `docker inspect` and tagged as `deploykit-rollback:${SERVICE}`. If health verification fails and `rollback-on-failure: true`, DeployKit generates a temporary Compose override pointing `image:` directly to the captured rollback image ID, re-deploys, verifies health, and removes the override file safely. Note: Rollback is service-scoped; `service-name` is required when `rollback-on-failure: true`.
 
 ### Release Automation (`release.yml`)
 

@@ -173,6 +173,7 @@ jobs:
       environment-url: 'https://app.example.com'
       compose-directory: '/opt/app'
       compose-file: 'docker-compose.prod.yml'
+      service-name: 'api'
       image-tag: ${{ github.sha }}
       health-check-url: 'https://app.example.com/api/health'
       rollback-on-failure: true

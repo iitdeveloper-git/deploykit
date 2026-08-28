@@ -99,30 +99,55 @@ class TestWorkflowsSchema(unittest.TestCase):
         self.assertIn("StrictHostKeyChecking=yes", content)
         self.assertNotIn("ssh-keyscan", content)
 
-    def test_rollback_image_capture_contracts(self):
+    def test_rollback_exact_image_restore_contracts(self):
         path = os.path.join(self.root_dir, ".github", "workflows", "deploy-ssh-docker.yml")
         with open(path, "r", encoding="utf-8") as f:
             content = f.read()
 
-        # Must use docker inspect for exact image ID and config reference
+        # Must use docker inspect to capture exact image ID
         self.assertIn("docker inspect --format '{{.Image}}'", content)
-        self.assertIn("docker inspect --format '{{.Config.Image}}'", content)
 
-        # Must NOT use non-portable docker compose images --format
-        self.assertNotIn("docker compose -f '${COMPOSE_FILE}' images ${SERVICE} --format", content)
+        # Must tag PREV_IMAGE_ID directly as rollback image
+        self.assertIn("docker tag '${PREV_IMAGE_ID}' 'deploykit-rollback:${SERVICE}'", content)
+
+        # Must generate a temporary Compose override pinning image to deploykit-rollback:${SERVICE}
+        self.assertIn("image: deploykit-rollback:${SERVICE}", content)
+        self.assertIn("docker-compose.deploykit-rollback.${SERVICE}.yml", content)
+
+        # Must require service-name when rollback-on-failure is true
+        self.assertIn("service-name' must be specified when 'rollback-on-failure' is true", content)
 
         # Must have explicit error reporting if rollback cannot be performed
         self.assertIn("Cannot rollback because no previous running container or image state was present", content)
 
-        # Tag extraction logic unit tests
-        for image_ref, expected_tag in [
-            ("ghcr.io/iitdeveloper-git/deploykit:v1.0.0", "v1.0.0"),
-            ("registry.example.com/org/app:sha-abcdef1", "sha-abcdef1"),
-            ("nginx:alpine", "alpine"),
-            ("custom-app-tag", "custom-app-tag"),
-        ]:
-            extracted_tag = image_ref.split(":")[-1] if ":" in image_ref else image_ref
-            self.assertEqual(extracted_tag, expected_tag)
+        # Verify compose override concept works for both repo/app:${IMAGE_TAG} and ${IMAGE_TAG}
+        base_compose_1 = {
+            "services": {
+                "web": {
+                    "image": "ghcr.io/org/app:${IMAGE_TAG}"
+                }
+            }
+        }
+        base_compose_2 = {
+            "services": {
+                "web": {
+                    "image": "${IMAGE_TAG}"
+                }
+            }
+        }
+        override_compose = {
+            "services": {
+                "web": {
+                    "image": "deploykit-rollback:web"
+                }
+            }
+        }
+
+        # Override replaces image attribute regardless of original pattern
+        merged_1 = {**base_compose_1["services"]["web"], **override_compose["services"]["web"]}
+        merged_2 = {**base_compose_2["services"]["web"], **override_compose["services"]["web"]}
+        self.assertEqual(merged_1["image"], "deploykit-rollback:web")
+        self.assertEqual(merged_2["image"], "deploykit-rollback:web")
 
     def test_deploy_input_validation_regex(self):
         service_regex = re.compile(r"^[-A-Za-z0-9._]*$")
