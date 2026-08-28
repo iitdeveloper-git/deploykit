@@ -61,6 +61,8 @@ class TestWorkflowsSchema(unittest.TestCase):
             "deploy-ssh-docker.yml",
             "security-scan.yml",
             "telegram-notify.yml",
+            "notify.yml",
+            "release.yml",
         ]
         for wf_name in reusable_wfs:
             path = os.path.join(self.root_dir, ".github", "workflows", wf_name)

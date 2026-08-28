@@ -4,17 +4,21 @@ This guide details the standard secrets required by **DeployKit** (`iitdeveloper
 
 ---
 
-## 1. Telegram Notification Secrets
+## 1. Notification Secrets
 
-To send deployment and CI status alerts:
-
+### Telegram
 | Secret Name | Level | Description | How to obtain |
 |---|---|---|---|
 | `TELEGRAM_BOT_TOKEN` | Organization or Repo | Telegram HTTP Bot API Token | Message [@BotFather](https://t.me/BotFather) on Telegram and create a bot (`/newbot`). |
 | `TELEGRAM_CHAT_ID` | Organization or Repo | Telegram Group or Channel Chat ID | Add bot to group/channel, then get chat ID (e.g. `-1001234567890`) via `@getidsbot` or API. |
 
+### Slack / Microsoft Teams / Discord / Generic Webhook
+| Secret Name | Level | Description | How to obtain |
+|---|---|---|---|
+| `WEBHOOK_URL` | Organization or Repo | Incoming Webhook endpoint URL | Obtain Webhook URL from Slack Apps, MS Teams Connectors, Discord Channel Integrations, or your custom webhook receiver. |
+
 > [!TIP]
-> Setting `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` at the **Organization level** allows all repositories in the organization to automatically inherit notification capabilities without individual configuration.
+> Setting notification secrets at the **Organization level** allows all repositories in the organization to automatically inherit alert capabilities.
 
 ---
 
@@ -27,6 +31,7 @@ When deploying to a remote host via `deploy-ssh-docker.yml`:
 | `DEPLOY_HOST` | Repo / Environment | Server IP address or hostname (e.g. `203.0.113.10` or `api.example.com`). |
 | `DEPLOY_USER` | Repo / Environment | SSH deployment user (e.g. `ubuntu`, `deploy`, `root`). |
 | `DEPLOY_SSH_KEY` | Repo / Environment | Private SSH Key (ed25519 or RSA) with access to `DEPLOY_HOST`. |
+| `DEPLOY_SSH_KNOWN_HOSTS` | Repo / Environment | Public host key (e.g. output from `ssh-keyscan`) for strict host verification. |
 | `DEPLOY_PORT` | Repo / Environment | SSH port (defaults to `22` if omitted). |
 | `REGISTRY_USERNAME` | Repo / Environment | Container registry username (optional). |
 | `REGISTRY_PASSWORD` | Repo / Environment | Container registry password or token (optional). |

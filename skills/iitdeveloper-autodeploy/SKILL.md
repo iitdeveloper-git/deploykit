@@ -1,8 +1,8 @@
 ---
 name: iitdeveloper-autodeploy
-description: Automatically turn any repository into a secure, production-ready CI/CD project using DeployKit (iitdeveloper-git/deploykit@v1). Detects language/framework, reuses shared workflows, enforces least-privilege, and configures environments, SSH Docker deployments, and Telegram notifications.
+description: Automatically turn any repository into a secure, production-ready CI/CD project using DeployKit (iitdeveloper-git/deploykit@v1). Detects language/framework, reuses shared workflows, enforces least-privilege, and configures environments, SSH Docker deployments, and multi-channel notifications (Telegram, Slack, Teams, Discord, Webhooks).
 license: MIT
-version: 1.0.0
+version: 1.0.1
 tags:
   - devops
   - ci-cd
@@ -10,6 +10,9 @@ tags:
   - github-actions
   - docker
   - telegram
+  - slack
+  - teams
+  - discord
   - deploykit
 ---
 
@@ -42,7 +45,7 @@ Automatically detect the project stack without making assumptions:
 - **Existing CI/CD:** Inspect `.github/workflows/` for existing pipelines, deployment targets, and custom steps.
 - **Environments:** Detect target environments (e.g. UAT, Staging, Production).
 - **Deployment Mechanism:** SSH VPS / Docker Compose, Container Registry (GHCR/DockerHub), PM2, Kubernetes, Cloud platforms.
-- **Notifications:** Telegram or Slack alerts.
+- **Notification Channels:** Detect desired alert channels: Telegram, Slack, Microsoft Teams, Discord, or Webhooks.
 
 ---
 
@@ -51,13 +54,16 @@ Verify available reusable workflows and composite actions from `iitdeveloper-git
 
 | Component | Target Ref | Purpose |
 |---|---|---|
-| `actions/telegram-notify` | `@v1` | Composite action for rich Telegram deployment & CI alerts |
-| `.github/workflows/telegram-notify.yml` | `@v1` | Reusable standalone job for Telegram alerts |
+| `actions/notify` | `@v1` | Composite action for multi-channel alerts (Telegram, Slack, Teams, Discord, Webhooks) |
+| `actions/telegram-notify` | `@v1` | Standalone composite action specifically for Telegram |
+| `.github/workflows/notify.yml` | `@v1` | Reusable multi-channel notification workflow |
+| `.github/workflows/telegram-notify.yml` | `@v1` | Reusable Telegram notification workflow |
 | `.github/workflows/node-ci.yml` | `@v1` | Reusable Node.js matrix test, lint, and build pipeline (npm/yarn/pnpm/bun) |
 | `.github/workflows/python-ci.yml` | `@v1` | Reusable Python pytest, ruff lint, and caching pipeline |
 | `.github/workflows/docker-build.yml` | `@v1` | Reusable multi-arch Docker build & push with Buildx |
-| `.github/workflows/deploy-ssh-docker.yml` | `@v1` | Reusable secure SSH VPS / Docker Compose deployment with health checks |
+| `.github/workflows/deploy-ssh-docker.yml` | `@v1` | Reusable secure SSH VPS / Docker Compose deployment with rollback guard |
 | `.github/workflows/security-scan.yml` | `@v1` | Reusable Trivy filesystem and container vulnerability scan |
+| `.github/workflows/release.yml` | `@v1` | Reusable GitHub release automation and artifact attachment |
 
 > [!IMPORTANT]
 > Use **only** workflows, actions, inputs, and secrets that actually exist in `@v1`. Do not invent non-existent workflow names or parameters. Never use `@main` or `@master`.
@@ -73,10 +79,11 @@ Verify available reusable workflows and composite actions from `iitdeveloper-git
   ```yaml
   uses: iitdeveloper-git/deploykit/actions/<action>@v1
   ```
+- For multi-channel alerts (Slack, Teams, Discord, Webhooks, Telegram), use `actions/notify@v1` or `.github/workflows/notify.yml@v1`.
 - For VPS / Docker Compose projects, use `.github/workflows/deploy-ssh-docker.yml@v1`.
 - For Node.js / Next.js projects, use `.github/workflows/node-ci.yml@v1`.
 - For Python / FastAPI projects, use `.github/workflows/python-ci.yml@v1`.
-- Keep custom workflow code inside the caller repository strictly limited to application-specific build steps.
+- For GitHub Releases, use `.github/workflows/release.yml@v1`.
 
 ---
 
@@ -97,9 +104,9 @@ Pull Request / Commit
          ↓
 Production Deployment (deploy-ssh-docker / Protected Env)
          ↓
-Post-Deployment Health Check
+Post-Deployment Health Check & Automatic Rollback Guard
          ↓
-Telegram Status Notification
+Multi-Channel Status Notification (Telegram, Slack, Teams, Discord)
 ```
 
 ---
@@ -110,8 +117,8 @@ Telegram Status Notification
 - **Least Privilege:** Declare explicit minimal permissions (e.g. `permissions: contents: read`).
 - **No Secret Leakage:** Ensure secrets never appear in logs or process args.
 - **Immutability & Rollback:** Deploy immutable artifacts (Docker tags, SemVer git tags).
-- **Post-Deploy Health Check:** Verify endpoint status after deployment before marking success.
-- **No Arbitrary Remote Execution:** Never construct unescaped remote shell commands from untrusted inputs.
+- **Post-Deploy Health Check:** Verify endpoint status after deployment; if failed, trigger automatic container rollback.
+- **Input Validation:** Ensure remote deployment parameters contain only safe, validated characters.
 
 ---
 
@@ -127,11 +134,9 @@ If `.github/workflows/` already exist:
 
 ### 7. Required Secrets Configuration
 Never invent fake production secrets in files. Use clean secret references:
-- `${{ secrets.TELEGRAM_BOT_TOKEN }}`
-- `${{ secrets.TELEGRAM_CHAT_ID }}`
-- `${{ secrets.DEPLOY_HOST }}`
-- `${{ secrets.DEPLOY_USER }}`
-- `${{ secrets.DEPLOY_SSH_KEY }}`
+- **Telegram:** `${{ secrets.TELEGRAM_BOT_TOKEN }}`, `${{ secrets.TELEGRAM_CHAT_ID }}`
+- **Slack / Teams / Discord / Webhook:** `${{ secrets.WEBHOOK_URL }}`
+- **SSH Deployment:** `${{ secrets.DEPLOY_HOST }}`, `${{ secrets.DEPLOY_USER }}`, `${{ secrets.DEPLOY_SSH_KEY }}`, `${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}`
 
 Detail every required secret clearly in the final summary.
 
@@ -170,20 +175,20 @@ When completing the auto-deploy setup for a project, always output the report st
 * **Environments Configured:** <UAT, Production, etc.>
 * **DeployKit Workflows Used (@v1):**
   - `iitdeveloper-git/deploykit/.github/workflows/...@v1`
-  - `iitdeveloper-git/deploykit/actions/telegram-notify@v1`
+  - `iitdeveloper-git/deploykit/actions/...@v1`
 * **Files Created / Changed:**
   - `.github/workflows/...`
 * **Required GitHub Secrets:**
-  - `TELEGRAM_BOT_TOKEN`: Bot token from @BotFather
-  - `TELEGRAM_CHAT_ID`: Group or channel chat ID
   - `DEPLOY_HOST`: Remote VPS hostname or IP
   - `DEPLOY_USER`: Remote SSH username
   - `DEPLOY_SSH_KEY`: Remote Private SSH key
+  - `DEPLOY_SSH_KNOWN_HOSTS`: Public host key (recommended for strict host verification)
+  - `WEBHOOK_URL` or `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID`: Notification credentials
 * **Required GitHub Environment Settings:**
   - Environment: `Production` (Required reviewers / branch protection)
 * **Deployment Trigger:** <e.g., Push to main, Release tag v*.*.*, Workflow dispatch>
-* **Production Protection:** <Protected Environment / Tag approval / Pre-flight checks>
-* **Notification Configuration:** Telegram rich HTML deployment & CI status notifications
+* **Production Protection:** <Protected Environment / Tag approval / Pre-flight checks / Rollback guard>
+* **Notification Configuration:** Multi-channel alert dispatch (Telegram / Slack / Teams / Discord / Webhook)
 * **Validation Performed:** YAML validation, input matching, syntax verification
 * **Manual Actions Remaining:** <Step-by-step instructions for repository maintainer>
 ```

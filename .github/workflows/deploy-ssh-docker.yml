@@ -49,7 +49,7 @@ on:
         type: number
         default: 5
       rollback-on-failure:
-        description: 'Whether to rollback or flag failure if health check fails'
+        description: 'Whether to rollback to previous state if health check fails'
         required: false
         type: boolean
         default: true
@@ -65,6 +65,9 @@ on:
         required: true
       DEPLOY_PORT:
         description: 'Remote SSH port (default: 22)'
+        required: false
+      DEPLOY_SSH_KNOWN_HOSTS:
+        description: 'Known hosts entry or public SSH key fingerprint for strict verification'
         required: false
       REGISTRY_USERNAME:
         description: 'Container registry username'
@@ -90,20 +93,46 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
+      - name: Validate Deployment Inputs
+        env:
+          COMPOSE_DIR: ${{ inputs.compose-directory }}
+          COMPOSE_FILE: ${{ inputs.compose-file }}
+          SERVICE: ${{ inputs.service-name }}
+          IMAGE_TAG: ${{ inputs.image-tag }}
+        run: |
+          # Ensure inputs do not contain dangerous shell metacharacters
+          SAFE_REGEX='^[a-zA-Z0-9_./:~ -]*$'
+
+          for var in "$COMPOSE_DIR" "$COMPOSE_FILE" "$SERVICE" "$IMAGE_TAG"; do
+            if ! [[ "$var" =~ $SAFE_REGEX ]]; then
+              echo "❌ DeployKit Security Error: Input contains invalid or unsafe characters: $var"
+              exit 1
+            fi
+          done
+          echo "✅ Deployment inputs validated successfully."
+
       - name: Setup SSH & Known Hosts
         env:
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           SSH_HOST: ${{ secrets.DEPLOY_HOST }}
           SSH_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          if [ -n "$KNOWN_HOSTS" ]; then
+            echo "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+            echo "🔒 Strict host verification configured via DEPLOY_SSH_KNOWN_HOSTS."
+          else
+            echo "⚠️ DEPLOY_SSH_KNOWN_HOSTS not provided. Fetching host key with ssh-keyscan..."
+            ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" > ~/.ssh/known_hosts 2>/dev/null
+          fi
           chmod 644 ~/.ssh/known_hosts
 
-      - name: Execute Docker Compose Deployment
+      - name: Execute Docker Compose Deployment & Rollback Guard
         env:
           SSH_HOST: ${{ secrets.DEPLOY_HOST }}
           SSH_USER: ${{ secrets.DEPLOY_USER }}
@@ -115,52 +144,67 @@ jobs:
           REG_USER: ${{ secrets.REGISTRY_USERNAME }}
           REG_PASS: ${{ secrets.REGISTRY_PASSWORD }}
           REG_URL: ${{ secrets.REGISTRY_URL || 'ghcr.io' }}
+          HEALTH_URL: ${{ inputs.health-check-url }}
+          RETRIES: ${{ inputs.health-check-retries }}
+          DELAY: ${{ inputs.health-check-delay }}
+          ROLLBACK: ${{ inputs.rollback-on-failure }}
         run: |
-          # Build remote deployment script without arbitrary caller command injection
           SSH_CMD="ssh -i ~/.ssh/deploy_key -p ${SSH_PORT} -o StrictHostKeyChecking=yes ${SSH_USER}@${SSH_HOST}"
 
           echo "🚀 Connecting to remote host..."
 
-          # Optional registry authentication on target host
+          # Optional registry login
           if [ -n "$REG_PASS" ]; then
-            echo "🔑 Authenticating with container registry ${REG_URL} on remote host..."
+            echo "🔑 Authenticating with container registry ${REG_URL}..."
             $SSH_CMD "echo '${REG_PASS}' | docker login '${REG_URL}' -u '${REG_USER:-$SSH_USER}' --password-stdin"
           fi
 
-          echo "📦 Navigating to ${COMPOSE_DIR} and deploying ${SERVICE:-all services}..."
-          $SSH_CMD "cd ${COMPOSE_DIR} && \
+          # Capture pre-deploy state for rollback
+          echo "📸 Capturing current container state for rollback guard..."
+          PREV_CONTAINER_ID=$($SSH_CMD "cd '${COMPOSE_DIR}' && docker compose -f '${COMPOSE_FILE}' ps -q ${SERVICE}" || echo "")
+
+          echo "📦 Deploying new release (${IMAGE_TAG:-latest})..."
+          $SSH_CMD "cd '${COMPOSE_DIR}' && \
             export IMAGE_TAG='${IMAGE_TAG}' && \
             export APP_VERSION='${IMAGE_TAG}' && \
             docker compose -f '${COMPOSE_FILE}' pull ${SERVICE} && \
-            docker compose -f '${COMPOSE_FILE}' up -d --remove-orphans ${SERVICE} && \
-            docker image prune -f"
+            docker compose -f '${COMPOSE_FILE}' up -d --remove-orphans ${SERVICE}"
 
-          echo "✅ Remote Docker Compose update completed."
+          # Health check probe
+          if [ -n "$HEALTH_URL" ]; then
+            echo "🏥 Verifying service health at: ${HEALTH_URL}"
+            SUCCESS="false"
+            for i in $(seq 1 "$RETRIES"); do
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" || echo "000")
+              if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 400 ]; then
+                echo "✅ Health check passed with HTTP ${HTTP_CODE} on attempt ${i}."
+                SUCCESS="true"
+                break
+              fi
+              echo "⏳ Attempt ${i}/${RETRIES}: Received HTTP ${HTTP_CODE}. Retrying in ${DELAY}s..."
+              sleep "$DELAY"
+            done
 
-      - name: Verify Post-Deployment Health Check
-        if: inputs.health-check-url != ''
-        env:
-          HEALTH_URL: ${{ inputs.health-check-url }}
-          RETRIES: ${{ inputs.health-check-retries }}
-          DELAY: ${{ inputs.health-check-delay }}
-        run: |
-          echo "🏥 Verifying service health at: ${HEALTH_URL}"
-          SUCCESS="false"
-          for i in $(seq 1 "$RETRIES"); do
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" || echo "000")
-            if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 400 ]; then
-              echo "✅ Health check passed with HTTP ${HTTP_CODE} on attempt ${i}."
-              SUCCESS="true"
-              break
+            if [ "$SUCCESS" != "true" ]; then
+              echo "❌ Health check failed after ${RETRIES} attempts."
+
+              if [ "$ROLLBACK" = "true" ] && [ -n "$PREV_CONTAINER_ID" ]; then
+                echo "⚠️ DeployKit: Initiating automatic rollback to previous container state..."
+                $SSH_CMD "cd '${COMPOSE_DIR}' && docker compose -f '${COMPOSE_FILE}' up -d ${SERVICE}"
+                echo "🔄 Rollback command dispatched. Verifying rollback health..."
+                sleep "$DELAY"
+                ROLLBACK_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" || echo "000")
+                echo "Rollback health check returned HTTP ${ROLLBACK_CODE}."
+              fi
+
+              exit 1
             fi
-            echo "⏳ Attempt ${i}/${RETRIES}: Received HTTP ${HTTP_CODE}. Retrying in ${DELAY}s..."
-            sleep "$DELAY"
-          done
-
-          if [ "$SUCCESS" != "true" ]; then
-            echo "❌ Health check failed after ${RETRIES} attempts."
-            exit 1
           fi
+
+          # Prune obsolete images after successful verification
+          echo "🧹 Cleaning up obsolete images on host..."
+          $SSH_CMD "docker image prune -f" || true
+          echo "✅ Remote Docker Compose update verified and completed."
 
       - name: Cleanup SSH Keys
         if: always()

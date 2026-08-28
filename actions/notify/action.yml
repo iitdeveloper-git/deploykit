@@ -1,0 +1,77 @@
+name: 'DeployKit Multi-Channel Notifier'
+description: 'Send deployment & CI/CD notifications to Telegram, Slack, Microsoft Teams, Discord, or Webhooks'
+author: 'iitdeveloper-git'
+branding:
+  icon: 'bell'
+  color: 'blue'
+
+inputs:
+  channel:
+    description: 'Notification channel: "telegram", "slack", "teams", "discord", "webhook" (auto-detected if omitted)'
+    required: false
+    default: ''
+  webhook_url:
+    description: 'Incoming Webhook URL for Slack, Teams, Discord, or generic Webhook'
+    required: false
+    default: ''
+  bot_token:
+    description: 'Telegram Bot Token from @BotFather (for Telegram channel)'
+    required: false
+    default: ''
+  chat_id:
+    description: 'Telegram Group/Channel Chat ID (for Telegram channel)'
+    required: false
+    default: ''
+  message_thread_id:
+    description: 'Telegram Topic / Thread ID (for Telegram supergroups)'
+    required: false
+    default: ''
+  app_name:
+    description: 'Application / Project Name'
+    required: false
+    default: ''
+  environment:
+    description: 'Deployment Environment (Production, Staging, CI / Tests)'
+    required: false
+    default: 'Production'
+  status:
+    description: 'Job / Deployment Status (success, failure, cancelled, timed_out)'
+    required: false
+    default: 'success'
+  release_tag:
+    description: 'Release Tag or Version (e.g. v1.0.0)'
+    required: false
+    default: ''
+  app_url:
+    description: 'Live Application URL'
+    required: false
+    default: ''
+  custom_message:
+    description: 'Optional custom release notes or description'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run DeployKit Multi-Channel Dispatcher
+      shell: bash
+      env:
+        INPUT_CHANNEL: ${{ inputs.channel }}
+        INPUT_WEBHOOK_URL: ${{ inputs.webhook_url }}
+        INPUT_BOT_TOKEN: ${{ inputs.bot_token }}
+        INPUT_CHAT_ID: ${{ inputs.chat_id }}
+        INPUT_THREAD_ID: ${{ inputs.message_thread_id }}
+        INPUT_STATUS: ${{ inputs.status }}
+        INPUT_APP: ${{ inputs.app_name }}
+        INPUT_ENV: ${{ inputs.environment }}
+        INPUT_TAG: ${{ inputs.release_tag }}
+        INPUT_URL: ${{ inputs.app_url }}
+        INPUT_CUSTOM: ${{ inputs.custom_message }}
+        GH_ACTOR: ${{ github.actor }}
+        GH_SERVER_URL: ${{ github.server_url }}
+        GH_REPO: ${{ github.repository }}
+        GH_SHA: ${{ github.sha }}
+        GH_RUN_ID: ${{ github.run_id }}
+      run: |
+        python3 "${{ github.action_path }}/send.py"

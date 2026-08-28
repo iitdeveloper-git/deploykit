@@ -4,7 +4,7 @@ This reference provides drop-in pipeline blueprints configured for `iitdeveloper
 
 ---
 
-## 1. Node.js / Next.js Full CI/CD with Telegram Notifications
+## 1. Node.js / Next.js Full CI/CD with Multi-Channel Notifications
 
 ```yaml
 name: Production CI/CD Pipeline
@@ -24,7 +24,7 @@ jobs:
     uses: iitdeveloper-git/deploykit/.github/workflows/node-ci.yml@v1
     with:
       node-version: '20'
-      package-manager: 'npm' # npm, yarn, pnpm, bun
+      package-manager: 'pnpm' # npm, yarn, pnpm, bun
       run-lint: true
       run-test: true
       run-build: true
@@ -46,12 +46,12 @@ jobs:
           echo "Executing production deployment..."
           # Application deployment commands
 
-      - name: 📢 Telegram Notification
+      - name: 📢 Multi-Channel Notification
         if: always()
-        uses: iitdeveloper-git/deploykit/actions/telegram-notify@v1
+        uses: iitdeveloper-git/deploykit/actions/notify@v1
         with:
-          bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          chat_id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          channel: 'slack' # telegram, slack, teams, discord, webhook (or auto)
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
           app_name: 'Frontend Application'
           environment: 'Production'
           status: ${{ job.status }}
@@ -103,7 +103,7 @@ jobs:
     name: Notification
     needs: [docker-publish]
     if: always()
-    uses: iitdeveloper-git/deploykit/.github/workflows/telegram-notify.yml@v1
+    uses: iitdeveloper-git/deploykit/.github/workflows/notify.yml@v1
     with:
       app_name: 'Backend API Service'
       environment: 'Production Container'
@@ -116,7 +116,7 @@ jobs:
 
 ---
 
-## 3. End-to-End VPS / Docker Compose Deployment with Health Check & Notifications
+## 3. End-to-End VPS / Docker Compose Deployment with Rollback Guard
 
 ```yaml
 name: Production VPS Deployment
@@ -163,7 +163,7 @@ jobs:
       REGISTRY_USERNAME: ${{ github.actor }}
       REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
-  # 4. Deploy to Remote Server via SSH & Docker Compose
+  # 4. Deploy to Remote Server via SSH & Docker Compose with Rollback Guard
   deploy:
     name: Deploy to Production Host
     needs: [build-container]
@@ -175,20 +175,22 @@ jobs:
       compose-file: 'docker-compose.prod.yml'
       image-tag: ${{ github.sha }}
       health-check-url: 'https://app.example.com/api/health'
+      rollback-on-failure: true
     secrets:
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
       DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
       DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      DEPLOY_SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
       DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
       REGISTRY_USERNAME: ${{ github.actor }}
       REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
-  # 5. Telegram Status Notification
+  # 5. Multi-Channel Status Notification
   notify:
-    name: Telegram Notification
+    name: Telegram / Slack Notification
     needs: [deploy]
     if: always()
-    uses: iitdeveloper-git/deploykit/.github/workflows/telegram-notify.yml@v1
+    uses: iitdeveloper-git/deploykit/.github/workflows/notify.yml@v1
     with:
       app_name: 'Production API'
       environment: 'Production'
@@ -197,4 +199,5 @@ jobs:
     secrets:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 ```

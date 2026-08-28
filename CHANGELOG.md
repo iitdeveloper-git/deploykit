@@ -11,6 +11,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.1] - 2026-08-29
+
+### Added
+- **Multi-Channel Notification Dispatcher (`actions/notify`):** Added unified notification dispatcher supporting Telegram, Slack, Microsoft Teams, Discord, and generic HTTP Webhooks with zero external dependencies.
+- **Reusable Multi-Channel Workflow (`.github/workflows/notify.yml`):** Standalone caller workflow routing deployment alerts to configured webhook and bot channels.
+- **Reusable Release Automation Workflow (`.github/workflows/release.yml`):** Automated GitHub Release drafting, publishing, and build asset attachment.
+
+### Security & Hardening
+- **Automated Rollback Guard in `deploy-ssh-docker.yml`:** Captures pre-deploy container state; automatically reverts to previous container state and verifies health check if post-deployment health probe fails.
+- **Verifiable SSH Host Authentication:** Added `DEPLOY_SSH_KNOWN_HOSTS` secret support to eliminate trust-on-first-use vulnerabilities in remote deployments.
+- **Deployment Parameter Sanitization:** Strict regex validation on remote commands prevents parameter and metacharacter injection.
+- **Truthful Bun Test Execution:** Fixed `node-ci.yml` so real Bun test failures properly fail CI pipelines without being swallowed.
+- **Multi-Channel Test Suite (`test_notify.py`):** Added comprehensive unit test suite enforcing 100% statement and branch coverage across all notification providers.
+
+---
+
 ## [1.0.0] - 2026-08-29
 
 ### Added

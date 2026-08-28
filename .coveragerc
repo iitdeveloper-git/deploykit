@@ -1,6 +1,8 @@
 [run]
 branch = True
-source = actions/telegram-notify
+source =
+    actions/telegram-notify
+    actions/notify
 omit =
     tests/*
 
