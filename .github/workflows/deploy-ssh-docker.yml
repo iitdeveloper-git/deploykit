@@ -189,10 +189,30 @@ jobs:
             echo "$REG_PASS" | $SSH_CMD "docker login '${REG_URL}' -u '${REG_USER:-$SSH_USER}' --password-stdin"
           fi
 
-          # Capture pre-deploy image tag for rollback
+          # Capture pre-deploy container and image state using docker inspect (portable & exact)
           echo "📸 Capturing current container state for rollback guard..."
-          PREV_IMAGE_TAG=$($SSH_CMD "cd '${COMPOSE_DIR}' && docker compose -f '${COMPOSE_FILE}' images ${SERVICE} --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | head -n1 || echo ''")
-          echo "Previous deployed image: ${PREV_IMAGE_TAG:-none}"
+          CONTAINER_ID=$($SSH_CMD "cd '${COMPOSE_DIR}' && docker compose -f '${COMPOSE_FILE}' ps -q ${SERVICE} 2>/dev/null | head -n1 || echo ''")
+          PREV_IMAGE_ID=""
+          PREV_IMAGE_REF=""
+          PREV_TAG=""
+
+          if [ -n "$CONTAINER_ID" ]; then
+            PREV_IMAGE_ID=$($SSH_CMD "docker inspect --format '{{.Image}}' '${CONTAINER_ID}' 2>/dev/null || echo ''")
+            PREV_IMAGE_REF=$($SSH_CMD "docker inspect --format '{{.Config.Image}}' '${CONTAINER_ID}' 2>/dev/null || echo ''")
+            if [ -n "$PREV_IMAGE_REF" ]; then
+              if [[ "$PREV_IMAGE_REF" == *":"* ]]; then
+                PREV_TAG="${PREV_IMAGE_REF##*:}"
+              else
+                PREV_TAG="$PREV_IMAGE_REF"
+              fi
+            fi
+            echo "Previous container: ${CONTAINER_ID:0:12}"
+            echo "Previous image ID: ${PREV_IMAGE_ID:-unknown}"
+            echo "Previous image Ref: ${PREV_IMAGE_REF:-unknown}"
+            echo "Previous tag: ${PREV_TAG:-latest}"
+          else
+            echo "ℹ️ No existing running container detected for service ${SERVICE:-all} prior to deployment."
+          fi
 
           echo "📦 Deploying release (${IMAGE_TAG:-latest})..."
           $SSH_CMD "cd '${COMPOSE_DIR}' && \
@@ -221,24 +241,23 @@ jobs:
 
               if [ "$ROLLBACK" = "true" ]; then
                 echo "⚠️ DeployKit: Initiating automatic rollback..."
-                if [ -n "$PREV_IMAGE_TAG" ]; then
-                  echo "Rolling back to previous image: ${PREV_IMAGE_TAG}..."
+                if [ -n "$CONTAINER_ID" ] && [ -n "$PREV_IMAGE_ID" ]; then
+                  echo "Restoring previous running version (Tag: ${PREV_TAG:-latest}, Image: ${PREV_IMAGE_ID:0:12})..."
                   $SSH_CMD "cd '${COMPOSE_DIR}' && \
-                    export IMAGE_TAG='${PREV_IMAGE_TAG}' && \
-                    export APP_VERSION='${PREV_IMAGE_TAG}' && \
+                    export IMAGE_TAG='${PREV_TAG:-latest}' && \
+                    export APP_VERSION='${PREV_TAG:-latest}' && \
                     docker compose -f '${COMPOSE_FILE}' up -d --remove-orphans ${SERVICE}"
-                else
-                  echo "Restoring previous container configuration..."
-                  $SSH_CMD "cd '${COMPOSE_DIR}' && docker compose -f '${COMPOSE_FILE}' up -d ${SERVICE}"
-                fi
 
-                echo "🔄 Rollback dispatched. Verifying rollback health..."
-                sleep "$DELAY"
-                ROLLBACK_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" || echo "000")
-                if [ "$ROLLBACK_CODE" -ge 200 ] && [ "$ROLLBACK_CODE" -lt 400 ]; then
-                  echo "✅ DeployKit: Rollback verified healthy (HTTP ${ROLLBACK_CODE}). Deployment failed."
+                  echo "🔄 Rollback dispatched. Verifying rollback health..."
+                  sleep "$DELAY"
+                  ROLLBACK_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" || echo "000")
+                  if [ "$ROLLBACK_CODE" -ge 200 ] && [ "$ROLLBACK_CODE" -lt 400 ]; then
+                    echo "✅ DeployKit: Rollback succeeded and verified healthy (HTTP ${ROLLBACK_CODE}). Original deployment failed."
+                  else
+                    echo "❌ DeployKit: Rollback also failed health check (HTTP ${ROLLBACK_CODE})."
+                  fi
                 else
-                  echo "❌ DeployKit: Rollback also failed health check (HTTP ${ROLLBACK_CODE})."
+                  echo "❌ DeployKit Rollback Error: Cannot rollback because no previous running container or image state was present before deployment."
                 fi
               fi
 

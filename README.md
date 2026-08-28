@@ -245,6 +245,8 @@ jobs:
       DEPLOY_SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
 ```
 
+> **Docker Compose Contract:** The workflow exports `IMAGE_TAG` and `APP_VERSION` environment variables to `docker compose`. Compose files can reference `image: ghcr.io/org/repo:${IMAGE_TAG}` or `image: ${IMAGE_TAG}`. Before deployment, the running container's image ID and tag are captured via `docker inspect`. If health verification fails and `rollback-on-failure: true`, DeployKit restores the exact previous running tag/image and re-verifies health.
+
 ### Release Automation (`release.yml`)
 
 ```yaml

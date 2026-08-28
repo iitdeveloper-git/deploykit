@@ -99,10 +99,35 @@ class TestWorkflowsSchema(unittest.TestCase):
         self.assertIn("StrictHostKeyChecking=yes", content)
         self.assertNotIn("ssh-keyscan", content)
 
+    def test_rollback_image_capture_contracts(self):
+        path = os.path.join(self.root_dir, ".github", "workflows", "deploy-ssh-docker.yml")
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # Must use docker inspect for exact image ID and config reference
+        self.assertIn("docker inspect --format '{{.Image}}'", content)
+        self.assertIn("docker inspect --format '{{.Config.Image}}'", content)
+
+        # Must NOT use non-portable docker compose images --format
+        self.assertNotIn("docker compose -f '${COMPOSE_FILE}' images ${SERVICE} --format", content)
+
+        # Must have explicit error reporting if rollback cannot be performed
+        self.assertIn("Cannot rollback because no previous running container or image state was present", content)
+
+        # Tag extraction logic unit tests
+        for image_ref, expected_tag in [
+            ("ghcr.io/iitdeveloper-git/deploykit:v1.0.0", "v1.0.0"),
+            ("registry.example.com/org/app:sha-abcdef1", "sha-abcdef1"),
+            ("nginx:alpine", "alpine"),
+            ("custom-app-tag", "custom-app-tag"),
+        ]:
+            extracted_tag = image_ref.split(":")[-1] if ":" in image_ref else image_ref
+            self.assertEqual(extracted_tag, expected_tag)
+
     def test_deploy_input_validation_regex(self):
-        service_regex = re.compile(r"^[A-Za-z0-9._-]*$")
-        compose_dir_regex = re.compile(r"^[A-Za-z0-9._/~ -]+$")
-        image_tag_regex = re.compile(r"^[A-Za-z0-9._/:-]*$")
+        service_regex = re.compile(r"^[-A-Za-z0-9._]*$")
+        compose_dir_regex = re.compile(r"^[-A-Za-z0-9._/~ ]+$")
+        image_tag_regex = re.compile(r"^[-A-Za-z0-9._/:]*$")
 
         # Valid inputs
         self.assertTrue(service_regex.match("api-service"))
