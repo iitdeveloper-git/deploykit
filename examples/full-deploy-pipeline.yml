@@ -1,0 +1,53 @@
+name: Production Deployment Pipeline
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  ci:
+    name: Continuous Integration
+    uses: iitdeveloper-git/shared-workflows/.github/workflows/node-ci.yml@v1
+    with:
+      node-version: '20'
+      package-manager: 'npm'
+
+  deploy:
+    name: Deploy to Production
+    needs: [ci]
+    runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Compute Release Tag
+        id: version
+        run: echo "tag=v1.2.0" >> "$GITHUB_OUTPUT"
+
+      - name: Execute Cloud Deployment
+        run: |
+          echo "Deploying to production infrastructure..."
+          # Deploy commands here
+
+  notify:
+    name: Telegram Notification
+    needs: [deploy]
+    if: always()
+    uses: iitdeveloper-git/shared-workflows/.github/workflows/telegram-notify.yml@v1
+    with:
+      app_name: 'Production API Service'
+      environment: 'Production'
+      status: ${{ needs.deploy.result }}
+      release_tag: ${{ needs.deploy.outputs.release_tag }}
+      app_url: 'https://api.example.com'
+      custom_message: '✨ Automated production deployment completed.'
+    secrets:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

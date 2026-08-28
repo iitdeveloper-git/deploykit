@@ -1,19 +1,23 @@
 name: Reusable Telegram Notification
+
 on:
   workflow_call:
     inputs:
       app_name:
         description: 'Application / Project Name'
-        required: true
+        required: false
         type: string
+        default: ''
       environment:
-        description: 'Deployment Environment (Production, UAT, CI / Tests)'
-        required: true
+        description: 'Deployment Environment (Production, Staging, CI / Tests)'
+        required: false
         type: string
+        default: 'Production'
       status:
-        description: 'Deployment Status (success, failure, cancelled)'
-        required: true
+        description: 'Deployment / Job Status (success, failure, cancelled)'
+        required: false
         type: string
+        default: 'success'
       release_tag:
         description: 'Release Tag (e.g. v1.0.0)'
         required: false
@@ -39,88 +43,31 @@ on:
         required: true
       TELEGRAM_CHAT_ID:
         required: true
+
+permissions:
+  contents: read
+
 jobs:
   notify:
     name: Send Telegram Notification
     runs-on: ubuntu-latest
     steps:
-      - name: Dispatch Telegram Notification
-        shell: bash
-        env:
-          STATUS: ${{ inputs.status }}
-          APP: ${{ inputs.app_name }}
-          ENV: ${{ inputs.environment }}
-          TAG: ${{ inputs.release_tag }}
-          URL: ${{ inputs.app_url }}
-          CUSTOM: ${{ inputs.custom_message }}
-          THREAD_ID: ${{ inputs.message_thread_id }}
-          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          GH_ACTOR: ${{ github.actor }}
-          GH_SERVER_URL: ${{ github.server_url }}
-          GH_REPO: ${{ github.repository }}
-          GH_SHA: ${{ github.sha }}
-          GH_RUN_ID: ${{ github.run_id }}
-        run: |
-          IS_CI=false
-          case "$ENV" in
-            *"CI"*|*"Test"*|*"Build"*|*"Lint"*)
-              IS_CI=true
-              ;;
-          esac
+      - name: Checkout Shared Workflows
+        uses: actions/checkout@v4
+        with:
+          repository: iitdeveloper-git/shared-workflows
+          sparse-checkout: |
+            actions/telegram-notify
 
-          if [ "$STATUS" = "success" ]; then
-            HEADER_EMOJI="🚀"
-            if [ "$IS_CI" = "true" ]; then
-              STATUS_LABEL="CI Pipeline Passed"
-              ENV_EMOJI="🟢"
-            else
-              STATUS_LABEL="Deployment Succeeded"
-              ENV_EMOJI="🟢"
-            fi
-          elif [ "$STATUS" = "cancelled" ]; then
-            HEADER_EMOJI="⚪️"
-            STATUS_LABEL="Run Cancelled"
-            ENV_EMOJI="⚪️"
-          else
-            HEADER_EMOJI="❌"
-            if [ "$IS_CI" = "true" ]; then
-              STATUS_LABEL="CI / Test Suite Failed"
-              ENV_EMOJI="🔴"
-            else
-              STATUS_LABEL="Deployment Failed"
-              ENV_EMOJI="🔴"
-            fi
-          fi
-
-          MSG="<b>${HEADER_EMOJI} ${APP} — ${STATUS_LABEL}</b>%0A%0A"
-          MSG+="🏷 <b>Environment:</b> ${ENV_EMOJI} ${ENV}%0A"
-          if [ -n "$TAG" ]; then
-            MSG+="📦 <b>Release:</b> <code>${TAG}</code>%0A"
-          fi
-          MSG+="👤 <b>Triggered By:</b> ${GH_ACTOR}%0A"
-          MSG+="🔗 <b>Commit:</b> <a href=\"${GH_SERVER_URL}/${GH_REPO}/commit/${GH_SHA}\">${GH_SHA}</a>%0A"
-          if [ -n "$URL" ]; then
-            MSG+="🌐 <b>Live URL:</b> <a href=\"${URL}\">${URL}</a>%0A"
-          fi
-          if [ -n "$CUSTOM" ]; then
-            MSG+="%0A📝 <i>${CUSTOM}</i>%0A"
-          fi
-          MSG+="%0A📊 <a href=\"${GH_SERVER_URL}/${GH_REPO}/actions/runs/${GH_RUN_ID}\">View GitHub Actions Run</a>"
-          CURL_ARGS=(
-            -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage"
-            -d "chat_id=${CHAT_ID}"
-            -d "parse_mode=HTML"
-            -d "text=${MSG}"
-            -d "disable_web_page_preview=true"
-          )
-          if [ -n "$THREAD_ID" ]; then
-            CURL_ARGS+=(-d "message_thread_id=${THREAD_ID}")
-          fi
-          RESPONSE=$(curl "${CURL_ARGS[@]}")
-
-          if echo "$RESPONSE" | grep -q '"ok":true'; then
-            echo "✅ Telegram notification sent successfully."
-          else
-            echo "⚠️ Telegram API returned error: $RESPONSE"
-          fi
+      - name: Dispatch Notification
+        uses: ./actions/telegram-notify
+        with:
+          bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat_id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          message_thread_id: ${{ inputs.message_thread_id }}
+          app_name: ${{ inputs.app_name }}
+          environment: ${{ inputs.environment }}
+          status: ${{ inputs.status }}
+          release_tag: ${{ inputs.release_tag }}
+          app_url: ${{ inputs.app_url }}
+          custom_message: ${{ inputs.custom_message }}

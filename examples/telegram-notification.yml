@@ -1,0 +1,50 @@
+name: Telegram Notification Example
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Example 1: Use the Composite Action inside an existing deployment job
+  deploy:
+    name: Deploy Service
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Simulate Deployment
+        run: echo "Deploying to production environment..."
+
+      - name: 📢 Notify via Telegram Composite Action
+        if: always()
+        uses: iitdeveloper-git/shared-workflows/actions/telegram-notify@v1
+        with:
+          bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat_id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          app_name: 'My Awesome Service'
+          environment: 'Production'
+          status: ${{ job.status }}
+          release_tag: 'v1.0.0'
+          app_url: 'https://app.example.com'
+          custom_message: '🚀 Deployed latest release candidate.'
+
+  # Example 2: Call the Reusable Workflow as an independent downstream job
+  notify-reusable:
+    name: Standalone Telegram Notification
+    needs: [deploy]
+    if: always()
+    uses: iitdeveloper-git/shared-workflows/.github/workflows/telegram-notify.yml@v1
+    with:
+      app_name: 'My Awesome Service'
+      environment: 'Production'
+      status: ${{ needs.deploy.result }}
+      release_tag: 'v1.0.0'
+      app_url: 'https://app.example.com'
+    secrets:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

@@ -1,0 +1,57 @@
+name: Reusable Security Scan
+
+on:
+  workflow_call:
+    inputs:
+      scan-type:
+        description: 'Scan type: "fs" (filesystem), "image", or "all"'
+        required: false
+        type: string
+        default: 'fs'
+      severity:
+        description: 'Severity levels to report (e.g. "CRITICAL,HIGH")'
+        required: false
+        type: string
+        default: 'CRITICAL,HIGH'
+      exit-code:
+        description: 'Exit code when vulnerabilities found ("0" for warning, "1" to fail job)'
+        required: false
+        type: string
+        default: '0'
+      target-image:
+        description: 'Target container image name (if scan-type is "image")'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  trivy-scan:
+    name: Trivy Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Run Trivy Vulnerability Scanner (FS)
+        if: inputs.scan-type == 'fs' || inputs.scan-type == 'all'
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          exit-code: ${{ inputs.exit-code }}
+          severity: ${{ inputs.severity }}
+
+      - name: Run Trivy Image Scanner
+        if: (inputs.scan-type == 'image' || inputs.scan-type == 'all') && inputs.target-image != ''
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'image'
+          image-ref: ${{ inputs.target-image }}
+          format: 'table'
+          exit-code: ${{ inputs.exit-code }}
+          severity: ${{ inputs.severity }}

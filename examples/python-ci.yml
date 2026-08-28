@@ -1,0 +1,21 @@
+name: Python CI Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  python-test:
+    name: Run Python Tests & Linting
+    uses: iitdeveloper-git/shared-workflows/.github/workflows/python-ci.yml@v1
+    with:
+      python-version: '3.11'
+      requirements-file: 'requirements.txt'
+      run-lint: true
+      run-test: true
+      test-command: 'pytest --maxfail=1 --disable-warnings'

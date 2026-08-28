@@ -1,0 +1,21 @@
+name: Node.js CI Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run Node.js Tests
+    uses: iitdeveloper-git/shared-workflows/.github/workflows/node-ci.yml@v1
+    with:
+      node-version: '20'
+      package-manager: 'npm'
+      run-lint: true
+      run-test: true
+      run-build: true

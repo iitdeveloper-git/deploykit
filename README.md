@@ -3,116 +3,285 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/iitdeveloper-git/shared-workflows/actions">
-    <img src="https://img.shields.io/badge/GitHub_Actions-Reusable-2088FF?style=for-the-badge&logo=githubactions&logoColor=white" alt="GitHub Actions" />
+  <a href="https://github.com/iitdeveloper-git/shared-workflows/actions/workflows/ci.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/iitdeveloper-git/shared-workflows/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI" alt="CI Status" />
+  </a>
+  <a href="https://github.com/iitdeveloper-git/shared-workflows/releases">
+    <img src="https://img.shields.io/badge/Release-v1.0.0-blue?style=for-the-badge&logo=tag&logoColor=white" alt="Release" />
   </a>
   <a href="https://core.telegram.org/bots/api">
     <img src="https://img.shields.io/badge/Telegram_Bot_API-v7-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Bot API" />
   </a>
-  <img src="https://img.shields.io/badge/Shell-Bash-4EAA25?style=for-the-badge&logo=gnubash&logoColor=white" alt="Bash" />
-  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT License" />
+  <a href="https://www.python.org/">
+    <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+" />
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT License" />
+  </a>
 </p>
 
 <p align="center">
-  <b>Centralized, reusable GitHub Actions workflows & composite actions for all <code>iitdeveloper-git</code> projects.</b><br/>
-  Drop-in Telegram deployment notifications — rich HTML messages, zero duplication.
+  <b>Production-grade, reusable GitHub Actions workflows & composite actions for modern engineering teams.</b><br/>
+  Drop-in Telegram notifications, standard CI pipelines, secure container builds, and security scans — zero duplication, zero lock-in.
 </p>
 
 ---
 
-## ✨ What You Get
+## 📑 Table of Contents
 
-When a deployment runs, your Telegram group gets an instant message like this:
+- [Overview & Architecture](#-overview--architecture)
+- [Available Workflows & Actions](#-available-workflows--actions)
+- [Quick Start](#-quick-start)
+  - [1. Telegram Notification Composite Action](#1-telegram-notification-composite-action)
+  - [2. Telegram Notification Reusable Workflow](#2-telegram-notification-reusable-workflow)
+- [Catalog of Reusable Workflows](#-catalog-of-reusable-workflows)
+  - [Node.js CI (`node-ci.yml`)](#nodejs-ci-node-ciyml)
+  - [Python CI (`python-ci.yml`)](#python-ci-python-ciyml)
+  - [Docker Build & Publish (`docker-build.yml`)](#docker-build--publish-docker-buildyml)
+  - [Security Scan (`security-scan.yml`)](#security-scan-security-scanyml)
+- [Secrets & Configuration Setup](#-secrets--configuration-setup)
+- [Action Inputs Reference](#-action-inputs-reference)
+- [Versioning & Release Strategy](#-versioning--release-strategy)
+- [Security & Governance](#-security--governance)
+- [Repository Structure](#-repository-structure)
+- [Contributing](#-contributing)
+- [License](#-license)
+
+---
+
+## 🏗 Overview & Architecture
+
+Maintaining duplicate GitHub Action workflow YAML files across multiple repositories creates maintenance overhead, security drift, and configuration fragmentation.
+
+`iitdeveloper-git/shared-workflows` solves this by providing:
+
+1. **Centralized Standardization:** Write once, patch once, inherit everywhere.
+2. **Hardened Security & Least Privilege:** Default minimal `permissions: contents: read`, zero secrets logging, and input escaping.
+3. **Pure Standard Library Runtime:** Composite actions rely on pure Python standard library scripts with zero third-party dependencies, preventing supply chain attacks.
+4. **Resilient Notifications:** Telegram notifications support rich HTML formatting, forum topics, Markdown formatting, and automated fallback to plain text if HTML entity parsing encounters malformed text.
 
 ```
-🚀 Growixa — Deployment Succeeded
-
-🏷 Environment:  🟢 Production
-📦 Release:      v2.4.1
-👤 Triggered By: ravi
-🔗 Commit:       a3f8c91
-🌐 Live URL:     https://growixa.iitdeveloper.com
-
-📝 Hotfix: resolved checkout session timeout issue
-
-📊 View GitHub Actions Run →
+┌────────────────────────────────────────────────────────┐
+│                   Caller Repositories                  │
+├───────────────────┬──────────────────┬─────────────────┤
+│    Frontend Web   │   Backend APIs   │  Microservices  │
+└─────────┬─────────┴────────┬─────────┴────────┬────────┘
+          │                  │                  │
+          ▼                  ▼                  ▼
+┌────────────────────────────────────────────────────────┐
+│         iitdeveloper-git/shared-workflows@v1           │
+├────────────────────────────────────────────────────────┤
+│ • actions/telegram-notify (Composite Action)           │
+│ • .github/workflows/telegram-notify.yml (Reusable)    │
+│ • .github/workflows/node-ci.yml (Reusable)             │
+│ • .github/workflows/python-ci.yml (Reusable)           │
+│ • .github/workflows/docker-build.yml (Reusable)        │
+│ • .github/workflows/security-scan.yml (Reusable)       │
+└────────────────────────────────────────────────────────┘
 ```
 
-> Supports `success` 🟢 · `failure` 🔴 · `cancelled` ⚪️ — automatically.
+---
+
+## 📦 Available Workflows & Actions
+
+| Workflow / Action | Type | Description |
+|---|---|---|
+| [`actions/telegram-notify`](actions/telegram-notify/) | **Composite Action** | Dispatches rich HTML / Plaintext Telegram deployment & CI status notifications. |
+| [`.github/workflows/telegram-notify.yml`](.github/workflows/telegram-notify.yml) | **Reusable Workflow** | Standalone caller job to trigger Telegram alerts. |
+| [`.github/workflows/node-ci.yml`](.github/workflows/node-ci.yml) | **Reusable Workflow** | Matrix CI pipeline for Node.js (lint, test, build with npm/yarn/pnpm). |
+| [`.github/workflows/python-ci.yml`](.github/workflows/python-ci.yml) | **Reusable Workflow** | Python test suite and linter runner with pip caching. |
+| [`.github/workflows/docker-build.yml`](.github/workflows/docker-build.yml) | **Reusable Workflow** | Multi-arch Docker container build, tag, and publish with Buildx. |
+| [`.github/workflows/security-scan.yml`](.github/workflows/security-scan.yml) | **Reusable Workflow** | Filesystem and container vulnerability scanning with Trivy. |
 
 ---
 
 ## 🚀 Quick Start
 
-### Method A — Composite Action *(Recommended for existing jobs)*
+### 1. Telegram Notification Composite Action
 
-Add a single step to the end of your deployment job:
+Add this step to the end of any job in your repository:
 
 ```yaml
       - name: 📢 Send Telegram Notification
         if: always()
-        uses: iitdeveloper-git/shared-workflows/actions/telegram-notify@main
+        uses: iitdeveloper-git/shared-workflows/actions/telegram-notify@v1
         with:
-          bot_token:    ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          chat_id:      ${{ secrets.TELEGRAM_CHAT_ID }}
-          app_name:     'Growixa'
-          environment:  'Production'
-          status:       ${{ job.status }}
-          release_tag:  ${{ steps.vars.outputs.tag }}
-          app_url:      'https://growixa.iitdeveloper.com'
+          bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat_id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          app_name: 'My Service'
+          environment: 'Production'
+          status: ${{ job.status }}
+          release_tag: ${{ steps.version.outputs.tag }}
+          app_url: 'https://app.example.com'
+          custom_message: '🚀 Deployed hotfix for checkout flow.'
 ```
+
+#### What your team receives in Telegram:
+
+```text
+🚀 My Service — Deployment Succeeded
+
+🏷 Environment: 🟢 Production
+📦 Release: v1.4.2
+👤 Triggered By: octocat
+🔗 Commit: a3f8c91
+🌐 Live URL: https://app.example.com
+
+📝 Release Notes:
+Deployed hotfix for checkout flow.
+
+📊 View GitHub Actions Run
+```
+
+> **Note:** Automatically adapts emoji & headings for `success` 🟢, `failure` 🔴, and `cancelled` ⚪️.
 
 ---
 
-### Method B — Reusable Workflow *(workflow_call)*
+### 2. Telegram Notification Reusable Workflow
 
-Call it as a standalone job after your deploy completes:
+Call it as a standalone job after deployment steps complete:
 
 ```yaml
   notify:
     name: 📢 Telegram Notification
     needs: [deploy]
     if: always()
-    uses: iitdeveloper-git/shared-workflows/.github/workflows/telegram-notify.yml@main
+    uses: iitdeveloper-git/shared-workflows/.github/workflows/telegram-notify.yml@v1
     with:
-      app_name:      'Growixa'
-      environment:   'Production'
-      status:        ${{ needs.deploy.result }}
-      release_tag:   ${{ needs.deploy.outputs.tag }}
-      app_url:       'https://growixa.iitdeveloper.com'
+      app_name: 'Payment API'
+      environment: 'Production'
+      status: ${{ needs.deploy.result }}
+      release_tag: ${{ needs.deploy.outputs.tag }}
+      app_url: 'https://api.example.com'
     secrets:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-      TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 ```
 
 ---
 
-## 🔑 One-Time Secrets Setup
+## 📚 Catalog of Reusable Workflows
 
-Configure secrets **once** at the Organization level — all repos inherit them automatically.
+### Node.js CI (`node-ci.yml`)
 
-| Step | Where to go |
-|------|-------------|
-| 1️⃣ | **Organization Settings** → **Secrets and variables** → **Actions** |
-| 2️⃣ | Add `TELEGRAM_BOT_TOKEN` — get from [@BotFather](https://t.me/BotFather) |
-| 3️⃣ | Add `TELEGRAM_CHAT_ID` — your group/channel ID (e.g. `-1001234567890`) |
-| 4️⃣ | Set **Repository access** → **All repositories** ✅ |
+```yaml
+jobs:
+  test:
+    uses: iitdeveloper-git/shared-workflows/.github/workflows/node-ci.yml@v1
+    with:
+      node-version: '20'
+      package-manager: 'npm' # npm, yarn, pnpm
+      run-lint: true
+      run-test: true
+      run-build: true
+```
+
+### Python CI (`python-ci.yml`)
+
+```yaml
+jobs:
+  test:
+    uses: iitdeveloper-git/shared-workflows/.github/workflows/python-ci.yml@v1
+    with:
+      python-version: '3.11'
+      requirements-file: 'requirements.txt'
+      run-lint: true
+      run-test: true
+      test-command: 'pytest --cov=src'
+```
+
+### Docker Build & Publish (`docker-build.yml`)
+
+```yaml
+jobs:
+  build-and-push:
+    uses: iitdeveloper-git/shared-workflows/.github/workflows/docker-build.yml@v1
+    with:
+      image-name: ghcr.io/${{ github.repository }}
+      push: true
+      tags: latest
+      platforms: linux/amd64,linux/arm64
+    secrets:
+      REGISTRY_USERNAME: ${{ github.actor }}
+      REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+```
+
+### Security Scan (`security-scan.yml`)
+
+```yaml
+jobs:
+  security-audit:
+    uses: iitdeveloper-git/shared-workflows/.github/workflows/security-scan.yml@v1
+    with:
+      scan-type: 'fs'
+      severity: 'CRITICAL,HIGH'
+      exit-code: '0'
+```
+
+Check out [`examples/`](examples/) for full end-to-end caller workflow files.
 
 ---
 
-## 📋 Inputs Reference
+## 🔑 Secrets & Configuration Setup
+
+To enable notifications across all repositories without repetitive manual configuration, configure secrets at the **Organization Level**:
+
+1. Go to **Organization Settings** → **Secrets and variables** → **Actions**.
+2. Add the following repository secrets:
+   - `TELEGRAM_BOT_TOKEN`: Bot token from [@BotFather](https://t.me/BotFather).
+   - `TELEGRAM_CHAT_ID`: Telegram group or channel chat ID (e.g. `-1001234567890`).
+3. Set **Repository access** → **All repositories** (or select specific repos).
+
+---
+
+## 📋 Action Inputs Reference
+
+### `actions/telegram-notify` & `telegram-notify.yml`
 
 | Input | Required | Default | Description |
 |---|:---:|---|---|
-| `bot_token` | ✅ | — | Telegram Bot HTTP API Token |
-| `chat_id` | ✅ | — | Target Group/Channel Chat ID |
-| `app_name` | ✅ | — | Application name (e.g. `Growixa`) |
-| `environment` | ✅ | — | `Production`, `UAT`, `Staging` |
-| `status` | ✅ | — | `success` · `failure` · `cancelled` |
-| `release_tag` | ➖ | `""` | Version tag (e.g. `v1.0.0`) |
-| `app_url` | ➖ | `""` | Live URL of the deployed app |
-| `custom_message` | ➖ | `""` | Extra release notes or custom text |
-| `message_thread_id` | ➖ | `""` | Telegram topic ID (for forum groups) |
+| `bot_token` / `TELEGRAM_BOT_TOKEN` | ✅ | — | Telegram Bot HTTP API Token (pass via secret). |
+| `chat_id` / `TELEGRAM_CHAT_ID` | ✅ | — | Target Group/Channel Chat ID (e.g. `-100xxxxxxx`). |
+| `message_thread_id` | ➖ | `""` | Telegram Topic / Thread ID (for Supergroups with forum topics enabled). |
+| `app_name` | ➖ | `repo name` | Application or microservice name. |
+| `environment` | ➖ | `'Production'` | Environment (e.g. `Production`, `Staging`, `CI / Tests`). |
+| `status` | ➖ | `'success'` | Job status (`success`, `failure`, `cancelled`, `timed_out`). |
+| `release_tag` | ➖ | `""` | Release tag or SemVer string (e.g. `v1.2.0`). |
+| `app_url` | ➖ | `""` | Live application or dashboard URL. |
+| `custom_message` | ➖ | `""` | Optional markdown/custom release notes. |
+
+---
+
+## 🏷 Versioning & Release Strategy
+
+This repository adheres strictly to [Semantic Versioning (SemVer)](https://semver.org/).
+
+### Recommended Pinning
+
+- **Pinned Major Release (Recommended):**
+  ```yaml
+  uses: iitdeveloper-git/shared-workflows/actions/telegram-notify@v1
+  ```
+  *Receives backwards-compatible feature updates and security patches automatically.*
+
+- **Pinned Exact Patch (Highest Determinism):**
+  ```yaml
+  uses: iitdeveloper-git/shared-workflows/actions/telegram-notify@v1.0.0
+  ```
+
+- **Pinned Full Commit SHA (Maximum Security & Zero-Trust):**
+  ```yaml
+  uses: iitdeveloper-git/shared-workflows/actions/telegram-notify@<FULL_COMMIT_SHA>
+  ```
+
+---
+
+## 🔒 Security & Governance
+
+- **Least Privilege:** Reusable workflows define explicit minimum permissions (`contents: read`).
+- **No Token Logging:** Tokens are strictly supplied via environment variables and never printed or exposed in logs.
+- **Dependency Minimization:** Scripts use the Python Standard Library to avoid third-party supply chain vulnerabilities.
+- For vulnerability reports and security policy, see [SECURITY.md](SECURITY.md).
 
 ---
 
@@ -122,16 +291,49 @@ Configure secrets **once** at the Organization level — all repos inherit them 
 shared-workflows/
 ├── .github/
 │   ├── assets/
-│   │   └── banner.jpg
+│   │   └── banner.jpg                  # Project visual banner
+│   ├── ISSUE_TEMPLATE/                 # Structured bug report & feature request forms
+│   │   ├── bug_report.yml
+│   │   ├── feature_request.yml
+│   │   └── config.yml
+│   ├── pull_request_template.md        # Pull request template
 │   └── workflows/
-│       └── telegram-notify.yml   # Reusable workflow (workflow_call)
-└── actions/
-    └── telegram-notify/
-        └── action.yml            # Composite action
+│       ├── ci.yml                      # Repository CI (actionlint, linting, tests)
+│       ├── docker-build.yml            # Reusable Docker build & publish workflow
+│       ├── node-ci.yml                 # Reusable Node.js CI workflow
+│       ├── python-ci.yml               # Reusable Python CI workflow
+│       ├── security-scan.yml           # Reusable Security scan workflow
+│       └── telegram-notify.yml         # Reusable Telegram notification workflow
+├── actions/
+│   └── telegram-notify/
+│       ├── action.yml                  # Telegram notification composite action manifest
+│       └── send.py                     # Zero-dependency Python dispatcher script
+├── examples/                           # Ready-to-use caller workflow templates
+│   ├── docker-build-push.yml
+│   ├── full-deploy-pipeline.yml
+│   ├── nodejs-ci.yml
+│   ├── python-ci.yml
+│   ├── security-scan.yml
+│   └── telegram-notification.yml
+├── tests/
+│   ├── __init__.py
+│   └── test_telegram_send.py           # Unit test suite for Telegram notifications
+├── CHANGELOG.md                        # Semantic release changelog
+├── CODE_OF_CONDUCT.md                  # Contributor Covenant v2.1
+├── CONTRIBUTING.md                     # Contribution & local testing guide
+├── LICENSE                             # MIT License
+├── README.md                           # Documentation & quick start guide
+└── SECURITY.md                         # Security and vulnerability reporting policy
 ```
 
 ---
 
-<p align="center">
-  Built with ❤️ by <a href="https://github.com/iitdeveloper-git"><b>iitdeveloper-git</b></a>
-</p>
+## 🤝 Contributing
+
+We welcome community contributions! Please read our [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) before opening pull requests.
+
+---
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE) &copy; 2026 iitdeveloper-git and contributors.

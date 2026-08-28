@@ -1,0 +1,48 @@
+name: 🐛 Bug Report
+description: Report a broken action, workflow error, or unexpected behavior
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please ensure you do not include sensitive tokens or secrets.
+  - type: dropdown
+    id: workflow_or_action
+    attributes:
+      label: Affected Component
+      options:
+        - "actions/telegram-notify"
+        - ".github/workflows/telegram-notify.yml"
+        - ".github/workflows/node-ci.yml"
+        - ".github/workflows/python-ci.yml"
+        - ".github/workflows/docker-build.yml"
+        - ".github/workflows/security-scan.yml"
+        - "Other"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version / Tag
+      description: What version or ref were you using (e.g. `@v1`, `@v1.0.0`, `@main`)?
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Problem Description
+      description: A clear and concise description of what happened.
+    validations:
+      required: true
+  - type: textarea
+    id: workflow_snippet
+    attributes:
+      label: Caller Workflow Snippet
+      description: The YAML snippet showing how you invoke the action/workflow (redact sensitive values!).
+      render: yaml
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Log Output
+      description: Copy and paste relevant GitHub Actions run logs (redact secrets!).
+      render: shell
