@@ -1,0 +1,50 @@
+name: Production VPS Docker Deployment
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: Run Test Suite
+    uses: iitdeveloper-git/deploykit/.github/workflows/node-ci.yml@v1
+    with:
+      node-version: '20'
+      package-manager: 'pnpm'
+
+  deploy:
+    name: Deploy to Remote Server
+    needs: [ci]
+    uses: iitdeveloper-git/deploykit/.github/workflows/deploy-ssh-docker.yml@v1
+    with:
+      environment: 'Production'
+      environment-url: 'https://app.example.com'
+      compose-directory: '/opt/app'
+      compose-file: 'docker-compose.prod.yml'
+      image-tag: ${{ github.sha }}
+      health-check-url: 'https://app.example.com/health'
+      rollback-on-failure: true
+    secrets:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      DEPLOY_SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+
+  notify:
+    name: Multi-Channel Notification
+    needs: [deploy]
+    if: always()
+    uses: iitdeveloper-git/deploykit/.github/workflows/notify.yml@v1
+    with:
+      channel: 'slack'
+      app_name: 'Production Service'
+      environment: 'Production'
+      status: ${{ needs.deploy.result }}
+      app_url: 'https://app.example.com'
+      fail-on-error: false
+    secrets:
+      WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

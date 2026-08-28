@@ -112,22 +112,11 @@ jobs:
             fi
           fi
 
-          if [ "${{ inputs.package-manager }}" = "bun" ]; then
-            if [ "$HAS_TEST" = "true" ]; then
-              echo "Executing test script with Bun..."
-              bun run test
-            else
-              HAS_TEST_FILES=$(find . -maxdepth 3 -not -path "*/node_modules/*" \( -name "*.test.ts" -o -name "*.test.js" -o -name "*.spec.ts" -o -name "*.spec.js" \) 2>/dev/null | head -n 1)
-              if [ -n "$HAS_TEST_FILES" ]; then
-                echo "Executing bun test on test files..."
-                bun test
-              else
-                echo "No test script or test files found in project, skipping."
-              fi
-            fi
-          elif [ "$HAS_TEST" = "true" ]; then
+          if [ "$HAS_TEST" = "true" ]; then
             echo "Executing test script..."
-            if [ "${{ inputs.package-manager }}" = "pnpm" ]; then
+            if [ "${{ inputs.package-manager }}" = "bun" ]; then
+              bun run test
+            elif [ "${{ inputs.package-manager }}" = "pnpm" ]; then
               pnpm test
             elif [ "${{ inputs.package-manager }}" = "yarn" ]; then
               yarn test

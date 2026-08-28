@@ -43,6 +43,11 @@ on:
         required: false
         type: string
         default: ''
+      fail-on-error:
+        description: 'Whether notification delivery failure should fail the job'
+        required: false
+        type: boolean
+        default: false
     secrets:
       WEBHOOK_URL:
         description: 'Webhook URL for Slack, Teams, Discord, or generic Webhook'
@@ -84,3 +89,4 @@ jobs:
           release_tag: ${{ inputs.release_tag }}
           app_url: ${{ inputs.app_url }}
           custom_message: ${{ inputs.custom_message }}
+          fail_on_error: ${{ inputs.fail-on-error }}

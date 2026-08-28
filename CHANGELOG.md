@@ -19,11 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Reusable Release Automation Workflow (`.github/workflows/release.yml`):** Automated GitHub Release drafting, publishing, and build asset attachment.
 
 ### Security & Hardening
-- **Automated Rollback Guard in `deploy-ssh-docker.yml`:** Captures pre-deploy container state; automatically reverts to previous container state and verifies health check if post-deployment health probe fails.
-- **Verifiable SSH Host Authentication:** Added `DEPLOY_SSH_KNOWN_HOSTS` secret support to eliminate trust-on-first-use vulnerabilities in remote deployments.
-- **Deployment Parameter Sanitization:** Strict regex validation on remote commands prevents parameter and metacharacter injection.
-- **Truthful Bun Test Execution:** Fixed `node-ci.yml` so real Bun test failures properly fail CI pipelines without being swallowed.
-- **Multi-Channel Test Suite (`test_notify.py`):** Added comprehensive unit test suite enforcing 100% statement and branch coverage across all notification providers.
+- **Real Automated Rollback Guard in `deploy-ssh-docker.yml`:** Captures pre-deploy image tag; automatically reverts to previous container state and verifies health check if post-deployment health probe fails.
+- **Verifiable Strict SSH Host Authentication:** Required `DEPLOY_SSH_KNOWN_HOSTS` secret eliminates trust-on-first-use vulnerabilities in remote deployments.
+- **Deployment Parameter Sanitization:** Strict regex validation on remote commands prevents parameter, path, and metacharacter injection.
+- **Safe Container Registry Authentication:** Registry passwords piped securely through stdin rather than embedded in remote shell commands.
+- **Truthful Bun Test Execution:** Standardized `node-ci.yml` test scripts so missing tests skip cleanly while failed tests always fail CI.
+- **Configurable Notification Delivery Enforcement:** Added optional `fail-on-error` (default `false`) for strict build gate environments.
+- **Complete Test & Verification Suite:** 100% statement and branch coverage enforced across all notification dispatchers and workflow contracts.
 
 ---
 

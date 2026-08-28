@@ -50,6 +50,10 @@ inputs:
     description: 'Optional custom release notes or description'
     required: false
     default: ''
+  fail_on_error:
+    description: 'Whether notification delivery failure should fail the action step'
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -68,6 +72,7 @@ runs:
         INPUT_TAG: ${{ inputs.release_tag }}
         INPUT_URL: ${{ inputs.app_url }}
         INPUT_CUSTOM: ${{ inputs.custom_message }}
+        INPUT_FAIL_ON_ERROR: ${{ inputs.fail_on_error }}
         GH_ACTOR: ${{ github.actor }}
         GH_SERVER_URL: ${{ github.server_url }}
         GH_REPO: ${{ github.repository }}

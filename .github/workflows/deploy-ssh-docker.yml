@@ -63,11 +63,11 @@ on:
       DEPLOY_SSH_KEY:
         description: 'Private SSH Key for authentication'
         required: true
+      DEPLOY_SSH_KNOWN_HOSTS:
+        description: 'Known hosts entry or public SSH key fingerprint for strict host verification'
+        required: true
       DEPLOY_PORT:
         description: 'Remote SSH port (default: 22)'
-        required: false
-      DEPLOY_SSH_KNOWN_HOSTS:
-        description: 'Known hosts entry or public SSH key fingerprint for strict verification'
         required: false
       REGISTRY_USERNAME:
         description: 'Container registry username'
@@ -99,38 +99,68 @@ jobs:
           COMPOSE_FILE: ${{ inputs.compose-file }}
           SERVICE: ${{ inputs.service-name }}
           IMAGE_TAG: ${{ inputs.image-tag }}
+          SSH_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+          REG_URL: ${{ secrets.REGISTRY_URL || 'ghcr.io' }}
+          REG_USER: ${{ secrets.REGISTRY_USERNAME || '' }}
         run: |
-          # Ensure inputs do not contain dangerous shell metacharacters
-          SAFE_REGEX='^[a-zA-Z0-9_./:~ -]*$'
+          PORT_REGEX='^[0-9]+$'
+          SERVICE_REGEX='^[-A-Za-z0-9._]*$'
+          COMPOSE_FILE_REGEX='^[-A-Za-z0-9._/]+$'
+          COMPOSE_DIR_REGEX='^[-A-Za-z0-9._/~ ]+$'
+          IMAGE_TAG_REGEX='^[-A-Za-z0-9._/:]*$'
+          REG_URL_REGEX='^[-A-Za-z0-9._:]*$'
+          REG_USER_REGEX='^[-A-Za-z0-9._]*$'
 
-          for var in "$COMPOSE_DIR" "$COMPOSE_FILE" "$SERVICE" "$IMAGE_TAG"; do
-            if ! [[ "$var" =~ $SAFE_REGEX ]]; then
-              echo "❌ DeployKit Security Error: Input contains invalid or unsafe characters: $var"
-              exit 1
-            fi
-          done
-          echo "✅ Deployment inputs validated successfully."
+          # Validate SSH Port
+          if [[ ! "$SSH_PORT" =~ $PORT_REGEX ]] || [ "$SSH_PORT" -lt 1 ] || [ "$SSH_PORT" -gt 65535 ]; then
+            echo "❌ DeployKit Security Error: Invalid SSH port: $SSH_PORT"
+            exit 1
+          fi
 
-      - name: Setup SSH & Known Hosts
+          # Validate Service Name
+          if [[ ! "$SERVICE" =~ $SERVICE_REGEX ]]; then
+            echo "❌ DeployKit Security Error: Invalid service name: $SERVICE"
+            exit 1
+          fi
+
+          # Validate Compose File (restricted path, no directory traversal)
+          if [[ ! "$COMPOSE_FILE" =~ $COMPOSE_FILE_REGEX ]] || [[ "$COMPOSE_FILE" == *".."* ]]; then
+            echo "❌ DeployKit Security Error: Invalid compose file path: $COMPOSE_FILE"
+            exit 1
+          fi
+
+          # Validate Compose Directory (no command injection tokens)
+          if [[ ! "$COMPOSE_DIR" =~ $COMPOSE_DIR_REGEX ]] || [[ "$COMPOSE_DIR" == *".."* ]]; then
+            echo "❌ DeployKit Security Error: Invalid compose directory: $COMPOSE_DIR"
+            exit 1
+          fi
+
+          # Validate Image Tag
+          if [[ ! "$IMAGE_TAG" =~ $IMAGE_TAG_REGEX ]]; then
+            echo "❌ DeployKit Security Error: Invalid image tag: $IMAGE_TAG"
+            exit 1
+          fi
+
+          # Validate Registry URL & Username
+          if [[ ! "$REG_URL" =~ $REG_URL_REGEX ]] || [[ ! "$REG_USER" =~ $REG_USER_REGEX ]]; then
+            echo "❌ DeployKit Security Error: Invalid registry coordinates."
+            exit 1
+          fi
+
+          echo "✅ All deployment parameters validated securely."
+
+      - name: Setup SSH & Verifiable Known Hosts
         env:
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          SSH_HOST: ${{ secrets.DEPLOY_HOST }}
-          SSH_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
           KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-
-          if [ -n "$KNOWN_HOSTS" ]; then
-            echo "$KNOWN_HOSTS" > ~/.ssh/known_hosts
-            echo "🔒 Strict host verification configured via DEPLOY_SSH_KNOWN_HOSTS."
-          else
-            echo "⚠️ DEPLOY_SSH_KNOWN_HOSTS not provided. Fetching host key with ssh-keyscan..."
-            ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" > ~/.ssh/known_hosts 2>/dev/null
-          fi
+          echo "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
+          echo "🔒 Strict verifiable host authentication configured (no TOFU)."
 
       - name: Execute Docker Compose Deployment & Rollback Guard
         env:
@@ -153,17 +183,18 @@ jobs:
 
           echo "🚀 Connecting to remote host..."
 
-          # Optional registry login
+          # Safe registry login via stdin piping (never in command string)
           if [ -n "$REG_PASS" ]; then
             echo "🔑 Authenticating with container registry ${REG_URL}..."
-            $SSH_CMD "echo '${REG_PASS}' | docker login '${REG_URL}' -u '${REG_USER:-$SSH_USER}' --password-stdin"
+            echo "$REG_PASS" | $SSH_CMD "docker login '${REG_URL}' -u '${REG_USER:-$SSH_USER}' --password-stdin"
           fi
 
-          # Capture pre-deploy state for rollback
+          # Capture pre-deploy image tag for rollback
           echo "📸 Capturing current container state for rollback guard..."
-          PREV_CONTAINER_ID=$($SSH_CMD "cd '${COMPOSE_DIR}' && docker compose -f '${COMPOSE_FILE}' ps -q ${SERVICE}" || echo "")
+          PREV_IMAGE_TAG=$($SSH_CMD "cd '${COMPOSE_DIR}' && docker compose -f '${COMPOSE_FILE}' images ${SERVICE} --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | head -n1 || echo ''")
+          echo "Previous deployed image: ${PREV_IMAGE_TAG:-none}"
 
-          echo "📦 Deploying new release (${IMAGE_TAG:-latest})..."
+          echo "📦 Deploying release (${IMAGE_TAG:-latest})..."
           $SSH_CMD "cd '${COMPOSE_DIR}' && \
             export IMAGE_TAG='${IMAGE_TAG}' && \
             export APP_VERSION='${IMAGE_TAG}' && \
@@ -188,13 +219,27 @@ jobs:
             if [ "$SUCCESS" != "true" ]; then
               echo "❌ Health check failed after ${RETRIES} attempts."
 
-              if [ "$ROLLBACK" = "true" ] && [ -n "$PREV_CONTAINER_ID" ]; then
-                echo "⚠️ DeployKit: Initiating automatic rollback to previous container state..."
-                $SSH_CMD "cd '${COMPOSE_DIR}' && docker compose -f '${COMPOSE_FILE}' up -d ${SERVICE}"
-                echo "🔄 Rollback command dispatched. Verifying rollback health..."
+              if [ "$ROLLBACK" = "true" ]; then
+                echo "⚠️ DeployKit: Initiating automatic rollback..."
+                if [ -n "$PREV_IMAGE_TAG" ]; then
+                  echo "Rolling back to previous image: ${PREV_IMAGE_TAG}..."
+                  $SSH_CMD "cd '${COMPOSE_DIR}' && \
+                    export IMAGE_TAG='${PREV_IMAGE_TAG}' && \
+                    export APP_VERSION='${PREV_IMAGE_TAG}' && \
+                    docker compose -f '${COMPOSE_FILE}' up -d --remove-orphans ${SERVICE}"
+                else
+                  echo "Restoring previous container configuration..."
+                  $SSH_CMD "cd '${COMPOSE_DIR}' && docker compose -f '${COMPOSE_FILE}' up -d ${SERVICE}"
+                fi
+
+                echo "🔄 Rollback dispatched. Verifying rollback health..."
                 sleep "$DELAY"
                 ROLLBACK_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" || echo "000")
-                echo "Rollback health check returned HTTP ${ROLLBACK_CODE}."
+                if [ "$ROLLBACK_CODE" -ge 200 ] && [ "$ROLLBACK_CODE" -lt 400 ]; then
+                  echo "✅ DeployKit: Rollback verified healthy (HTTP ${ROLLBACK_CODE}). Deployment failed."
+                else
+                  echo "❌ DeployKit: Rollback also failed health check (HTTP ${ROLLBACK_CODE})."
+                fi
               fi
 
               exit 1

@@ -305,6 +305,7 @@ Configure notification and deployment secrets at the **Organization Level** or *
 | `release_tag` | ➖ | `""` | Release tag or SemVer string (e.g. `v1.2.0`). |
 | `app_url` | ➖ | `""` | Live application or dashboard URL. |
 | `custom_message` | ➖ | `""` | Optional markdown/custom release notes. |
+| `fail_on_error` / `fail-on-error` | ➖ | `false` | When `true`, notification delivery failure causes the action/workflow to fail. |
 
 ---
 

@@ -434,6 +434,32 @@ class TestNotifyDispatcher(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             mock_webhook.assert_called_once()
 
+    @patch.object(notify, "dispatch_telegram")
+    def test_main_failure_with_fail_on_error_false(self, mock_telegram):
+        mock_telegram.return_value = False
+        env = {
+            "INPUT_BOT_TOKEN": "123:ABC",
+            "INPUT_CHAT_ID": "456",
+            "INPUT_FAIL_ON_ERROR": "false",
+            "GH_REPO": "org/repo",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            exit_code = notify.main()
+            self.assertEqual(exit_code, 0)
+
+    @patch.object(notify, "dispatch_telegram")
+    def test_main_failure_with_fail_on_error_true(self, mock_telegram):
+        mock_telegram.return_value = False
+        env = {
+            "INPUT_BOT_TOKEN": "123:ABC",
+            "INPUT_CHAT_ID": "456",
+            "INPUT_FAIL_ON_ERROR": "true",
+            "GH_REPO": "org/repo",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            exit_code = notify.main()
+            self.assertEqual(exit_code, 1)
+
     def test_main_unsupported_channel(self):
         env = {
             "INPUT_CHANNEL": "unsupported_channel_xyz",

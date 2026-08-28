@@ -63,6 +63,7 @@ def parse_context(env: dict[str, str] | None = None) -> dict[str, str]:
         "bot_token": e.get("INPUT_BOT_TOKEN", "").strip(),
         "chat_id": e.get("INPUT_CHAT_ID", "").strip(),
         "thread_id": e.get("INPUT_THREAD_ID", "").strip(),
+        "fail_on_error": e.get("INPUT_FAIL_ON_ERROR", "false").strip().lower() in ("true", "1"),
     }
 
 
@@ -359,8 +360,10 @@ def main() -> int:
         print(f"DeployKit Error: Unsupported notification channel '{channel}'. Supported: {', '.join(providers.keys())}")
         return 1
 
-    handler(ctx)
-    return 0  # Notifications warn but do not fail build step unless required
+    ok = handler(ctx)
+    if ok:
+        return 0
+    return 1 if ctx.get("fail_on_error") else 0
 
 
 if __name__ == "__main__":
