@@ -14,12 +14,12 @@ on:
         type: string
         default: 'requirements.txt'
       run-lint:
-        description: 'Whether to run linting (ruff / flake8)'
+        description: 'Whether to run linting (ruff)'
         required: false
         type: boolean
         default: true
       run-test:
-        description: 'Whether to run pytest'
+        description: 'Whether to run test suite'
         required: false
         type: boolean
         default: true
@@ -53,25 +53,24 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
           cache: 'pip'
-          cache-dependency-path: ${{ inputs.requirements-file }}
 
-      - name: Upgrade Pip & Install Base Tooling
+      - name: Upgrade Pip & Install Dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
           if [ -f "${{ inputs.requirements-file }}" ]; then
             pip install -r "${{ inputs.requirements-file }}"
           elif [ -f "pyproject.toml" ]; then
-            pip install ".[test,dev]" || pip install .
+            pip install ".[test,dev]" 2>/dev/null || pip install .
           fi
 
       - name: Run Ruff Linter
         if: inputs.run-lint
         run: |
-          pip install ruff || true
-          ruff check . || echo "Ruff check completed"
+          pip install ruff
+          ruff check .
 
       - name: Run Unit Tests
         if: inputs.run-test
         run: |
-          pip install pytest pytest-cov || true
+          pip install pytest pytest-cov
           ${{ inputs.test-command }}

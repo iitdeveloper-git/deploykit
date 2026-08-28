@@ -7,7 +7,7 @@
     <img src="https://img.shields.io/github/actions/workflow/status/iitdeveloper-git/shared-workflows/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI" alt="CI Status" />
   </a>
   <a href="https://github.com/iitdeveloper-git/shared-workflows/releases">
-    <img src="https://img.shields.io/badge/Release-v1.0.0-blue?style=for-the-badge&logo=tag&logoColor=white" alt="Release" />
+    <img src="https://img.shields.io/github/v/release/iitdeveloper-git/shared-workflows?style=for-the-badge&logo=tag&logoColor=white&label=Release" alt="Release" />
   </a>
   <a href="https://core.telegram.org/bots/api">
     <img src="https://img.shields.io/badge/Telegram_Bot_API-v7-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Bot API" />
@@ -39,6 +39,7 @@
   - [Python CI (`python-ci.yml`)](#python-ci-python-ciyml)
   - [Docker Build & Publish (`docker-build.yml`)](#docker-build--publish-docker-buildyml)
   - [Security Scan (`security-scan.yml`)](#security-scan-security-scanyml)
+- [🤖 AI Coding Agent AutoDeploy Skill](#-ai-coding-agent-autodeploy-skill)
 - [Secrets & Configuration Setup](#-secrets--configuration-setup)
 - [Action Inputs Reference](#-action-inputs-reference)
 - [Versioning & Release Strategy](#-versioning--release-strategy)
@@ -69,7 +70,7 @@ Maintaining duplicate GitHub Action workflow YAML files across multiple reposito
           │                  │                  │
           ▼                  ▼                  ▼
 ┌────────────────────────────────────────────────────────┐
-│         iitdeveloper-git/shared-workflows@v1           │
+│          iitdeveloper-git/shared-workflows@v1          │
 ├────────────────────────────────────────────────────────┤
 │ • actions/telegram-notify (Composite Action)           │
 │ • .github/workflows/telegram-notify.yml (Reusable)    │
@@ -77,6 +78,7 @@ Maintaining duplicate GitHub Action workflow YAML files across multiple reposito
 │ • .github/workflows/python-ci.yml (Reusable)           │
 │ • .github/workflows/docker-build.yml (Reusable)        │
 │ • .github/workflows/security-scan.yml (Reusable)       │
+│ • skills/iitdeveloper-autodeploy (AI Agent Skill)      │
 └────────────────────────────────────────────────────────┘
 ```
 
@@ -88,10 +90,11 @@ Maintaining duplicate GitHub Action workflow YAML files across multiple reposito
 |---|---|---|
 | [`actions/telegram-notify`](actions/telegram-notify/) | **Composite Action** | Dispatches rich HTML / Plaintext Telegram deployment & CI status notifications. |
 | [`.github/workflows/telegram-notify.yml`](.github/workflows/telegram-notify.yml) | **Reusable Workflow** | Standalone caller job to trigger Telegram alerts. |
-| [`.github/workflows/node-ci.yml`](.github/workflows/node-ci.yml) | **Reusable Workflow** | Matrix CI pipeline for Node.js (lint, test, build with npm/yarn/pnpm). |
-| [`.github/workflows/python-ci.yml`](.github/workflows/python-ci.yml) | **Reusable Workflow** | Python test suite and linter runner with pip caching. |
+| [`.github/workflows/node-ci.yml`](.github/workflows/node-ci.yml) | **Reusable Workflow** | Matrix CI pipeline for Node.js (lint, test, build with npm/yarn/pnpm/bun). |
+| [`.github/workflows/python-ci.yml`](.github/workflows/python-ci.yml) | **Reusable Workflow** | Python test suite and linter runner with pip caching and pyproject.toml support. |
 | [`.github/workflows/docker-build.yml`](.github/workflows/docker-build.yml) | **Reusable Workflow** | Multi-arch Docker container build, tag, and publish with Buildx. |
 | [`.github/workflows/security-scan.yml`](.github/workflows/security-scan.yml) | **Reusable Workflow** | Filesystem and container vulnerability scanning with Trivy. |
+| [`skills/iitdeveloper-autodeploy`](skills/iitdeveloper-autodeploy/) | **Agent Skill** | Antigravity AI skill to configure any repository with `shared-workflows@v1`. |
 
 ---
 
@@ -170,7 +173,7 @@ jobs:
     uses: iitdeveloper-git/shared-workflows/.github/workflows/node-ci.yml@v1
     with:
       node-version: '20'
-      package-manager: 'npm' # npm, yarn, pnpm
+      package-manager: 'npm' # npm, yarn, pnpm, bun
       run-lint: true
       run-test: true
       run-build: true
@@ -215,10 +218,26 @@ jobs:
     with:
       scan-type: 'fs'
       severity: 'CRITICAL,HIGH'
-      exit-code: '0'
+      exit-code: '1' # Fails CI if CRITICAL/HIGH vulnerabilities exist
 ```
 
 Check out [`examples/`](examples/) for full end-to-end caller workflow files.
+
+---
+
+## 🤖 AI Coding Agent AutoDeploy Skill
+
+This repository includes the **`iitdeveloper-autodeploy`** AI Agent skill. Any AI coding assistant (like Antigravity) can use this skill to automatically inspect any repository and configure production CI/CD pipelines powered by `iitdeveloper-git/shared-workflows@v1`.
+
+### How to Use with Your Agent:
+
+1. Copy the skill into your project's `.agents/skills/` directory:
+   ```bash
+   cp -r skills/iitdeveloper-autodeploy .agents/skills/
+   ```
+2. Prompt your coding agent:
+   > *"Use the `iitdeveloper-autodeploy` skill to set up CI/CD and deployment for this project."*
+3. The agent will automatically detect the language/framework, assemble the least-privilege workflow files, configure Telegram notifications, and output the required GitHub secrets list.
 
 ---
 
@@ -260,18 +279,18 @@ This repository adheres strictly to [Semantic Versioning (SemVer)](https://semve
 
 - **Pinned Major Release (Recommended):**
   ```yaml
-  uses: iitdeveloper-git/shared-workflows/actions/telegram-notify@v1
+  uses: iitdeveloper-git/shared-workflows/.github/workflows/node-ci.yml@v1
   ```
   *Receives backwards-compatible feature updates and security patches automatically.*
 
 - **Pinned Exact Patch (Highest Determinism):**
   ```yaml
-  uses: iitdeveloper-git/shared-workflows/actions/telegram-notify@v1.0.0
+  uses: iitdeveloper-git/shared-workflows/.github/workflows/node-ci.yml@v1.0.3
   ```
 
 - **Pinned Full Commit SHA (Maximum Security & Zero-Trust):**
   ```yaml
-  uses: iitdeveloper-git/shared-workflows/actions/telegram-notify@<FULL_COMMIT_SHA>
+  uses: iitdeveloper-git/shared-workflows/.github/workflows/node-ci.yml@<FULL_COMMIT_SHA>
   ```
 
 ---
@@ -289,9 +308,17 @@ This repository adheres strictly to [Semantic Versioning (SemVer)](https://semve
 
 ```
 shared-workflows/
+├── .agents/
+│   └── skills/
+│       └── iitdeveloper-autodeploy/    # Workspace AI Agent AutoDeploy skill
+│           ├── SKILL.md
+│           └── references/
+│               ├── examples.md
+│               └── secrets.md
 ├── .github/
 │   ├── assets/
 │   │   └── banner.jpg                  # Project visual banner
+│   ├── dependabot.yml                  # Weekly automated dependency maintenance
 │   ├── ISSUE_TEMPLATE/                 # Structured bug report & feature request forms
 │   │   ├── bug_report.yml
 │   │   ├── feature_request.yml
@@ -315,9 +342,15 @@ shared-workflows/
 │   ├── python-ci.yml
 │   ├── security-scan.yml
 │   └── telegram-notification.yml
+├── skills/
+│   └── iitdeveloper-autodeploy/        # Exportable Agent skill bundle
+│       ├── SKILL.md
+│       └── references/
+│           ├── examples.md
+│           └── secrets.md
 ├── tests/
 │   ├── __init__.py
-│   └── test_telegram_send.py           # Unit test suite for Telegram notifications
+│   └── test_telegram_send.py           # Unit test suite for Telegram notifications (100% branch coverage)
 ├── CHANGELOG.md                        # Semantic release changelog
 ├── CODE_OF_CONDUCT.md                  # Contributor Covenant v2.1
 ├── CONTRIBUTING.md                     # Contribution & local testing guide

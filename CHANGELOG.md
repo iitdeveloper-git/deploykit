@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.3] - 2026-08-29
+
+### Fixed & Hardened
+- **Node.js CI:** Added full native support for `bun` via `oven-sh/setup-bun` alongside `npm`, `yarn`, and `pnpm`.
+- **Python CI:** Fixed `pyproject.toml` dependency installation and removed silent error suppressions so linter and test failures properly trigger job failures.
+- **Telegram Reusable Workflow:** Explicitly locked sparse-checkout ref to `v1` to prevent unversioned default branch execution.
+- **Contract Consistency:** Enforced consistent `required: true` contracts for Telegram secrets.
+- **Production Security Gates:** Configured security scan examples to use `exit-code: '1'` to enforce production security blocking.
+- **AutoDeploy Skill & Docs:** Fixed invalid `uses:` syntax in skill definitions, updated release badges, and documented the skill in README, TOC, and repository structure.
+
+---
+
 ## [1.0.2] - 2026-08-29
 
 ### Added

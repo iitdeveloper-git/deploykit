@@ -5,9 +5,13 @@ description: Automatically turn any repository into a secure, production-ready C
 
 # IITDEVELOPER AutoDeploy
 
-Configure repositories using:
+Configure repositories using reusable workflows & actions from:
 ```yaml
-uses: iitdeveloper-git/shared-workflows@v1
+# Reusable Workflows:
+uses: iitdeveloper-git/shared-workflows/.github/workflows/<workflow>.yml@v1
+
+# Composite Actions:
+uses: iitdeveloper-git/shared-workflows/actions/<action>@v1
 ```
 
 ## Goal
