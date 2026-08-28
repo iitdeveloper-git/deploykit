@@ -88,7 +88,7 @@ def send_http_request(url: str, payload: dict, timeout: int = 15) -> tuple[bool,
         return False, ex.code, body
     except urllib.error.URLError as ex:
         return False, 0, str(ex.reason)
-    except Exception as ex:
+    except (TimeoutError, OSError, Exception) as ex:  # noqa: BLE001
         return False, 0, str(ex)
 
 
@@ -359,8 +359,8 @@ def main() -> int:
         print(f"DeployKit Error: Unsupported notification channel '{channel}'. Supported: {', '.join(providers.keys())}")
         return 1
 
-    ok = handler(ctx)
-    return 0 if ok else 0  # Notifications warn but do not fail build step unless required
+    handler(ctx)
+    return 0  # Notifications warn but do not fail build step unless required
 
 
 if __name__ == "__main__":

@@ -354,14 +354,14 @@ class TestNotifyDispatcher(unittest.TestCase):
     @patch("urllib.request.urlopen")
     def test_http_url_error(self, mock_urlopen):
         mock_urlopen.side_effect = urllib.error.URLError("DNS resolution failed")
-        success, code, body = notify.send_http_request("https://invalid.example.com", {})
+        success, code, _ = notify.send_http_request("https://invalid.example.com", {})
         self.assertFalse(success)
         self.assertEqual(code, 0)
 
     @patch("urllib.request.urlopen")
     def test_http_generic_exception(self, mock_urlopen):
         mock_urlopen.side_effect = RuntimeError("Socket timeout")
-        success, code, body = notify.send_http_request("https://invalid.example.com", {})
+        success, code, _ = notify.send_http_request("https://invalid.example.com", {})
         self.assertFalse(success)
         self.assertEqual(code, 0)
 
