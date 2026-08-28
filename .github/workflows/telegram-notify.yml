@@ -40,9 +40,9 @@ on:
         default: ''
     secrets:
       TELEGRAM_BOT_TOKEN:
-        required: true
+        required: false
       TELEGRAM_CHAT_ID:
-        required: true
+        required: false
 
 permissions:
   contents: read

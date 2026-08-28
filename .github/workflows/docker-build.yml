@@ -5,8 +5,9 @@ on:
     inputs:
       image-name:
         description: 'Docker image name (e.g. ghcr.io/owner/app or owner/app)'
-        required: true
+        required: false
         type: string
+        default: ''
       dockerfile:
         description: 'Path to Dockerfile'
         required: false
