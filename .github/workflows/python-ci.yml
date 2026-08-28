@@ -61,7 +61,7 @@ jobs:
           if [ -f "${{ inputs.requirements-file }}" ]; then
             pip install -r "${{ inputs.requirements-file }}"
           elif [ -f "pyproject.toml" ]; then
-            pip install .[test,dev] || pip install .
+            pip install ".[test,dev]" || pip install .
           fi
 
       - name: Run Ruff Linter
