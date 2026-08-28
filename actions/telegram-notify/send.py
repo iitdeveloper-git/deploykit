@@ -5,6 +5,8 @@ Sends standardized, rich HTML notifications with automatic plain-text fallback.
 Zero external dependencies (pure Python standard library).
 """
 
+from __future__ import annotations
+
 import html
 import json
 import os
@@ -12,13 +14,13 @@ import re
 import sys
 import urllib.error
 import urllib.request
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 
-def parse_context(env: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+def parse_context(env: dict[str, str] | None = None) -> dict[str, str]:
     """Extract and sanitize runtime context from environment variables."""
     if env is None:
-        env = os.environ
+        env = dict(os.environ)
 
     repo = env.get("GH_REPO", "")
     server_url = env.get("GH_SERVER_URL", "https://github.com").rstrip("/")
@@ -42,7 +44,7 @@ def parse_context(env: Optional[Dict[str, str]] = None) -> Dict[str, str]:
     }
 
 
-def get_status_metadata(status: str, env_name: str) -> Tuple[str, str, str]:
+def get_status_metadata(status: str, env_name: str) -> tuple[str, str, str]:
     """Determine header emoji, status label, and environment indicator emoji."""
     is_ci = any(k in env_name.lower() for k in ["ci", "test", "build", "lint", "check"])
 
@@ -66,7 +68,7 @@ def get_status_metadata(status: str, env_name: str) -> Tuple[str, str, str]:
     return header_emoji, status_label, env_emoji
 
 
-def build_messages(ctx: Dict[str, str]) -> Tuple[str, str]:
+def build_messages(ctx: dict[str, str]) -> tuple[str, str]:
     """Generate both formatted HTML and plain text notification payloads."""
     header_emoji, status_label, env_emoji = get_status_metadata(
         ctx["status"], ctx["env_name"]
@@ -141,9 +143,9 @@ def build_messages(ctx: Dict[str, str]) -> Tuple[str, str]:
 
 def send_telegram(
     bot_token: str,
-    payload: Dict[str, Any],
+    payload: dict[str, Any],
     timeout: int = 15,
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """Execute HTTP POST request to Telegram Bot API."""
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     req = urllib.request.Request(
@@ -159,7 +161,7 @@ def send_telegram(
     except urllib.error.HTTPError as e:
         err_body = e.read().decode("utf-8")
         return False, f"HTTP {e.code}: {err_body}"
-    except Exception as e:
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
         return False, str(e)
 
 
@@ -172,7 +174,7 @@ def main() -> int:
 
     html_text, plain_text = build_messages(ctx)
 
-    payload: Dict[str, Any] = {
+    payload: dict[str, Any] = {
         "chat_id": ctx["chat_id"],
         "text": html_text,
         "parse_mode": "HTML",
