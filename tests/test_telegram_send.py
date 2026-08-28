@@ -118,7 +118,7 @@ class TestTelegramNotify(unittest.TestCase):
             "INPUT_ENV": "Staging",
         }
         ctx = send.parse_context(minimal_env)
-        html_msg, plain_msg = send.build_messages(ctx)
+        html_msg, _ = send.build_messages(ctx)
         self.assertIn("MinimalApp", html_msg)
         self.assertNotIn("📦 <b>Release:</b>", html_msg)
         self.assertNotIn("👤 <b>Triggered By:</b>", html_msg)
