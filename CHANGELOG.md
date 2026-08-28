@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.2] - 2026-08-29
+
+### Added
+- **AI Agent Skill (`iitdeveloper-autodeploy`):** Added the standard `iitdeveloper-autodeploy` skill with complete reference documentation and example blueprints, enabling coding agents to automatically configure caller repositories with `iitdeveloper-git/shared-workflows@v1`.
+
+---
+
 ## [1.0.1] - 2026-08-29
 
 ### Security & Hardening
