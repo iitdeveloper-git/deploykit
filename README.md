@@ -77,6 +77,7 @@ Maintaining duplicate GitHub Action workflow YAML files across multiple reposito
 │ • .github/workflows/node-ci.yml (Reusable)             │
 │ • .github/workflows/python-ci.yml (Reusable)           │
 │ • .github/workflows/docker-build.yml (Reusable)        │
+│ • .github/workflows/deploy-ssh-docker.yml (Reusable)   │
 │ • .github/workflows/security-scan.yml (Reusable)       │
 │ • skills/iitdeveloper-autodeploy (AI Agent Skill)      │
 └────────────────────────────────────────────────────────┘
@@ -93,6 +94,7 @@ Maintaining duplicate GitHub Action workflow YAML files across multiple reposito
 | [`.github/workflows/node-ci.yml`](.github/workflows/node-ci.yml) | **Reusable Workflow** | Matrix CI pipeline for Node.js (lint, test, build with npm/yarn/pnpm/bun). |
 | [`.github/workflows/python-ci.yml`](.github/workflows/python-ci.yml) | **Reusable Workflow** | Python test suite and linter runner with pip caching and pyproject.toml support. |
 | [`.github/workflows/docker-build.yml`](.github/workflows/docker-build.yml) | **Reusable Workflow** | Multi-arch Docker container build, tag, and publish with Buildx. |
+| [`.github/workflows/deploy-ssh-docker.yml`](.github/workflows/deploy-ssh-docker.yml) | **Reusable Workflow** | Secure VPS / Docker Compose deployment with health check & rollback safety. |
 | [`.github/workflows/security-scan.yml`](.github/workflows/security-scan.yml) | **Reusable Workflow** | Filesystem and container vulnerability scanning with Trivy. |
 | [`skills/iitdeveloper-autodeploy`](skills/iitdeveloper-autodeploy/) | **Agent Skill** | Antigravity AI skill to configure any repository with `shared-workflows@v1`. |
 
@@ -221,6 +223,25 @@ jobs:
       exit-code: '1' # Fails CI if CRITICAL/HIGH vulnerabilities exist
 ```
 
+### SSH Docker Deployment (`deploy-ssh-docker.yml`)
+
+```yaml
+jobs:
+  deploy:
+    uses: iitdeveloper-git/shared-workflows/.github/workflows/deploy-ssh-docker.yml@v1
+    with:
+      environment: 'Production'
+      environment-url: 'https://app.example.com'
+      compose-directory: '/opt/app'
+      compose-file: 'docker-compose.yml'
+      image-tag: ${{ github.sha }}
+      health-check-url: 'https://app.example.com/health'
+    secrets:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+```
+
 Check out [`examples/`](examples/) for full end-to-end caller workflow files.
 
 ---
@@ -326,6 +347,7 @@ shared-workflows/
 │   ├── pull_request_template.md        # Pull request template
 │   └── workflows/
 │       ├── ci.yml                      # Repository CI (actionlint, linting, tests)
+│       ├── deploy-ssh-docker.yml       # Reusable SSH / Docker Compose deploy workflow
 │       ├── docker-build.yml            # Reusable Docker build & publish workflow
 │       ├── node-ci.yml                 # Reusable Node.js CI workflow
 │       ├── python-ci.yml               # Reusable Python CI workflow

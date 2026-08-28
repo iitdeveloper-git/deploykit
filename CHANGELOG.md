@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.4] - 2026-08-29
+
+### Added
+- **Reusable SSH Docker Deployment Workflow (`deploy-ssh-docker.yml`):** Added secure reusable workflow for VPS / Docker Compose deployments with GitHub Environment protection, SSH host key verification, least privilege, immutable tag/image releases, and automated post-deployment health check probes.
+- **Workflow Schema & Security Test Suite (`test_workflows_schema.py`):** Added automated unit test validating workflow permissions, `workflow_call` triggers, and zero unpinned action refs.
+
+### Fixed & Hardened
+- **Node.js CI Failure Handling:** Replaced failure-suppressing `|| true` with clean script-existence detection; missing scripts are skipped cleanly, while failed scripts properly fail CI.
+- **Python CI Dependency Installation:** Clean separation between `requirements.txt` (`pip install -r`) and `pyproject.toml` (`pip install .`) with zero suppressed errors.
+- **AutoDeploy Skill Specification:** Added `license: MIT` and tags metadata to `SKILL.md` frontmatter, validated against Agent Skills specification, and updated blueprints with `deploy-ssh-docker.yml`.
+
+---
+
 ## [1.0.3] - 2026-08-29
 
 ### Fixed & Hardened

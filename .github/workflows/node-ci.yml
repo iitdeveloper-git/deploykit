@@ -80,38 +80,79 @@ jobs:
       - name: Run Lint
         if: inputs.run-lint
         run: |
-          if [ "${{ inputs.package-manager }}" = "bun" ]; then
-            bun run lint || true
-          elif [ "${{ inputs.package-manager }}" = "pnpm" ]; then
-            pnpm run lint --if-present
-          elif [ "${{ inputs.package-manager }}" = "yarn" ]; then
-            yarn run lint || true
+          HAS_LINT="false"
+          if [ -f "package.json" ]; then
+            if node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts.lint ? 0 : 1)" 2>/dev/null; then
+              HAS_LINT="true"
+            fi
+          fi
+
+          if [ "$HAS_LINT" = "true" ]; then
+            echo "Executing lint script..."
+            if [ "${{ inputs.package-manager }}" = "bun" ]; then
+              bun run lint
+            elif [ "${{ inputs.package-manager }}" = "pnpm" ]; then
+              pnpm run lint
+            elif [ "${{ inputs.package-manager }}" = "yarn" ]; then
+              yarn run lint
+            else
+              npm run lint
+            fi
           else
-            npm run lint --if-present
+            echo "No lint script defined in package.json, skipping."
           fi
 
       - name: Run Tests
         if: inputs.run-test
         run: |
+          HAS_TEST="false"
+          if [ -f "package.json" ]; then
+            if node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts.test ? 0 : 1)" 2>/dev/null; then
+              HAS_TEST="true"
+            fi
+          fi
+
           if [ "${{ inputs.package-manager }}" = "bun" ]; then
-            bun test
-          elif [ "${{ inputs.package-manager }}" = "pnpm" ]; then
-            pnpm test --if-present
-          elif [ "${{ inputs.package-manager }}" = "yarn" ]; then
-            yarn test || true
+            if [ "$HAS_TEST" = "true" ]; then
+              bun test
+            else
+              echo "No test script found, running bun test on test files..."
+              bun test || echo "No bun tests found, skipping."
+            fi
+          elif [ "$HAS_TEST" = "true" ]; then
+            echo "Executing test script..."
+            if [ "${{ inputs.package-manager }}" = "pnpm" ]; then
+              pnpm test
+            elif [ "${{ inputs.package-manager }}" = "yarn" ]; then
+              yarn test
+            else
+              npm test
+            fi
           else
-            npm test --if-present
+            echo "No test script defined in package.json, skipping."
           fi
 
       - name: Run Build
         if: inputs.run-build
         run: |
-          if [ "${{ inputs.package-manager }}" = "bun" ]; then
-            bun run build || true
-          elif [ "${{ inputs.package-manager }}" = "pnpm" ]; then
-            pnpm run build --if-present
-          elif [ "${{ inputs.package-manager }}" = "yarn" ]; then
-            yarn run build || true
+          HAS_BUILD="false"
+          if [ -f "package.json" ]; then
+            if node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts.build ? 0 : 1)" 2>/dev/null; then
+              HAS_BUILD="true"
+            fi
+          fi
+
+          if [ "$HAS_BUILD" = "true" ]; then
+            echo "Executing build script..."
+            if [ "${{ inputs.package-manager }}" = "bun" ]; then
+              bun run build
+            elif [ "${{ inputs.package-manager }}" = "pnpm" ]; then
+              pnpm run build
+            elif [ "${{ inputs.package-manager }}" = "yarn" ]; then
+              yarn run build
+            else
+              npm run build
+            fi
           else
-            npm run build --if-present
+            echo "No build script defined in package.json, skipping."
           fi

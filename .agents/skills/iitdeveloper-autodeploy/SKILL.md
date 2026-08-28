@@ -1,6 +1,15 @@
 ---
 name: iitdeveloper-autodeploy
-description: Automatically turn any repository into a secure, production-ready CI/CD project using iitdeveloper-git/shared-workflows@v1. Detects language/framework, reuses shared workflows, enforces least-privilege, and configures environments and Telegram notifications.
+description: Automatically turn any repository into a secure, production-ready CI/CD project using iitdeveloper-git/shared-workflows@v1. Detects language/framework, reuses shared workflows, enforces least-privilege, and configures environments, SSH Docker deployments, and Telegram notifications.
+license: MIT
+version: 1.0.4
+tags:
+  - devops
+  - ci-cd
+  - deployment
+  - github-actions
+  - docker
+  - telegram
 ---
 
 # IITDEVELOPER AutoDeploy
@@ -31,7 +40,7 @@ Automatically detect the project stack without making assumptions:
 - **Scripts & Commands:** Test, lint, format, type-check, and build commands (e.g. from `package.json`, `pyproject.toml`, `Makefile`, `Dockerfile`).
 - **Existing CI/CD:** Inspect `.github/workflows/` for existing pipelines, deployment targets, and custom steps.
 - **Environments:** Detect target environments (e.g. UAT, Staging, Production).
-- **Deployment Mechanism:** SSH, Docker container registry, PM2, Kubernetes, Cloud (AWS/GCP/Vercel/Render), static host.
+- **Deployment Mechanism:** SSH VPS / Docker Compose, Container Registry (GHCR/DockerHub), PM2, Kubernetes, Cloud platforms.
 - **Notifications:** Telegram or Slack alerts.
 
 ---
@@ -43,9 +52,10 @@ Verify available reusable workflows and composite actions from `iitdeveloper-git
 |---|---|---|
 | `actions/telegram-notify` | `@v1` | Composite action for rich Telegram deployment & CI alerts |
 | `.github/workflows/telegram-notify.yml` | `@v1` | Reusable standalone job for Telegram alerts |
-| `.github/workflows/node-ci.yml` | `@v1` | Reusable Node.js matrix test, lint, and build pipeline |
+| `.github/workflows/node-ci.yml` | `@v1` | Reusable Node.js matrix test, lint, and build pipeline (npm/yarn/pnpm/bun) |
 | `.github/workflows/python-ci.yml` | `@v1` | Reusable Python pytest, ruff lint, and caching pipeline |
 | `.github/workflows/docker-build.yml` | `@v1` | Reusable multi-arch Docker build & push with Buildx |
+| `.github/workflows/deploy-ssh-docker.yml` | `@v1` | Reusable secure SSH VPS / Docker Compose deployment with health checks |
 | `.github/workflows/security-scan.yml` | `@v1` | Reusable Trivy filesystem and container vulnerability scan |
 
 > [!IMPORTANT]
@@ -62,7 +72,10 @@ Verify available reusable workflows and composite actions from `iitdeveloper-git
   ```yaml
   uses: iitdeveloper-git/shared-workflows/actions/<action>@v1
   ```
-- Keep custom workflow code inside the caller repository strictly limited to application-specific build scripts or unique deployment targets.
+- For VPS / Docker Compose projects, use `.github/workflows/deploy-ssh-docker.yml@v1`.
+- For Node.js / Next.js projects, use `.github/workflows/node-ci.yml@v1`.
+- For Python / FastAPI projects, use `.github/workflows/python-ci.yml@v1`.
+- Keep custom workflow code inside the caller repository strictly limited to application-specific build steps.
 
 ---
 
@@ -75,13 +88,15 @@ Pull Request / Commit
          ↓
   CI (Lint & Test)
          ↓
-   Security Scan
+   Security Scan (Production Gate: exit-code: '1')
          ↓
-  Build / Package
+  Build / Container Package
          ↓
   UAT Deployment (Optional/Branch-based)
          ↓
-Production Deployment (Tagged / Main / Protected Env)
+Production Deployment (deploy-ssh-docker / Protected Env)
+         ↓
+Post-Deployment Health Check
          ↓
 Telegram Status Notification
 ```
@@ -103,7 +118,7 @@ Telegram Status Notification
 If `.github/workflows/` already exist:
 1. Audit existing jobs for custom build steps, environment variables, and deployment secrets.
 2. Preserve existing application-specific behavior.
-3. Replace duplicated boilerplate (linting, testing, Docker builds, notifications) with `shared-workflows@v1`.
+3. Replace duplicated boilerplate (linting, testing, Docker builds, SSH deployments, notifications) with `shared-workflows@v1`.
 4. Delete old duplicated workflow files only after verifying compatibility.
 5. Purge any legacy references to `iitdeveloper-git-shared-workflows` and update to `shared-workflows@v1`.
 
@@ -160,7 +175,9 @@ When completing the auto-deploy setup for a project, always output the report st
 * **Required GitHub Secrets:**
   - `TELEGRAM_BOT_TOKEN`: Bot token from @BotFather
   - `TELEGRAM_CHAT_ID`: Group or channel chat ID
-  - `<OTHER_SECRETS>`: <Purpose>
+  - `DEPLOY_HOST`: Remote VPS hostname or IP
+  - `DEPLOY_USER`: Remote SSH username
+  - `DEPLOY_SSH_KEY`: Remote Private SSH key
 * **Required GitHub Environment Settings:**
   - Environment: `Production` (Required reviewers / branch protection)
 * **Deployment Trigger:** <e.g., Push to main, Release tag v*.*.*, Workflow dispatch>

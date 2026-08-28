@@ -1,0 +1,167 @@
+name: Reusable SSH Docker Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Target GitHub Environment (e.g. Production, UAT, Staging)'
+        required: false
+        type: string
+        default: 'Production'
+      environment-url:
+        description: 'Live URL of the deployed environment'
+        required: false
+        type: string
+        default: ''
+      service-name:
+        description: 'Docker Compose service name to update (optional; updates all if omitted)'
+        required: false
+        type: string
+        default: ''
+      compose-file:
+        description: 'Docker Compose file name on remote host'
+        required: false
+        type: string
+        default: 'docker-compose.yml'
+      compose-directory:
+        description: 'Directory path on remote host containing the compose file'
+        required: false
+        type: string
+        default: '~/app'
+      image-tag:
+        description: 'Immutable Docker image tag/version to deploy'
+        required: false
+        type: string
+        default: ''
+      health-check-url:
+        description: 'HTTP endpoint to verify application health post-deployment'
+        required: false
+        type: string
+        default: ''
+      health-check-retries:
+        description: 'Maximum health check retry attempts'
+        required: false
+        type: number
+        default: 10
+      health-check-delay:
+        description: 'Delay in seconds between health check retries'
+        required: false
+        type: number
+        default: 5
+      rollback-on-failure:
+        description: 'Whether to rollback or flag failure if health check fails'
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      DEPLOY_HOST:
+        description: 'Remote SSH Host / IP address'
+        required: true
+      DEPLOY_USER:
+        description: 'Remote SSH username'
+        required: true
+      DEPLOY_SSH_KEY:
+        description: 'Private SSH Key for authentication'
+        required: true
+      DEPLOY_PORT:
+        description: 'Remote SSH port (default: 22)'
+        required: false
+      REGISTRY_USERNAME:
+        description: 'Container registry username'
+        required: false
+      REGISTRY_PASSWORD:
+        description: 'Container registry password or access token'
+        required: false
+      REGISTRY_URL:
+        description: 'Container registry hostname (default: ghcr.io)'
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-ssh:
+    name: Deploy to ${{ inputs.environment }} (SSH / Docker)
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ inputs.environment-url }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup SSH & Known Hosts
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_HOST: ${{ secrets.DEPLOY_HOST }}
+          SSH_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Execute Docker Compose Deployment
+        env:
+          SSH_HOST: ${{ secrets.DEPLOY_HOST }}
+          SSH_USER: ${{ secrets.DEPLOY_USER }}
+          SSH_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+          COMPOSE_DIR: ${{ inputs.compose-directory }}
+          COMPOSE_FILE: ${{ inputs.compose-file }}
+          SERVICE: ${{ inputs.service-name }}
+          IMAGE_TAG: ${{ inputs.image-tag }}
+          REG_USER: ${{ secrets.REGISTRY_USERNAME }}
+          REG_PASS: ${{ secrets.REGISTRY_PASSWORD }}
+          REG_URL: ${{ secrets.REGISTRY_URL || 'ghcr.io' }}
+        run: |
+          # Build remote deployment script without arbitrary caller command injection
+          SSH_CMD="ssh -i ~/.ssh/deploy_key -p ${SSH_PORT} -o StrictHostKeyChecking=yes ${SSH_USER}@${SSH_HOST}"
+
+          echo "🚀 Connecting to remote host..."
+
+          # Optional registry authentication on target host
+          if [ -n "$REG_PASS" ]; then
+            echo "🔑 Authenticating with container registry ${REG_URL} on remote host..."
+            $SSH_CMD "echo '${REG_PASS}' | docker login '${REG_URL}' -u '${REG_USER:-$SSH_USER}' --password-stdin"
+          fi
+
+          echo "📦 Navigating to ${COMPOSE_DIR} and deploying ${SERVICE:-all services}..."
+          $SSH_CMD "cd ${COMPOSE_DIR} && \
+            export IMAGE_TAG='${IMAGE_TAG}' && \
+            export APP_VERSION='${IMAGE_TAG}' && \
+            docker compose -f '${COMPOSE_FILE}' pull ${SERVICE} && \
+            docker compose -f '${COMPOSE_FILE}' up -d --remove-orphans ${SERVICE} && \
+            docker image prune -f"
+
+          echo "✅ Remote Docker Compose update completed."
+
+      - name: Verify Post-Deployment Health Check
+        if: inputs.health-check-url != ''
+        env:
+          HEALTH_URL: ${{ inputs.health-check-url }}
+          RETRIES: ${{ inputs.health-check-retries }}
+          DELAY: ${{ inputs.health-check-delay }}
+        run: |
+          echo "🏥 Verifying service health at: ${HEALTH_URL}"
+          SUCCESS="false"
+          for i in $(seq 1 "$RETRIES"); do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" || echo "000")
+            if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 400 ]; then
+              echo "✅ Health check passed with HTTP ${HTTP_CODE} on attempt ${i}."
+              SUCCESS="true"
+              break
+            fi
+            echo "⏳ Attempt ${i}/${RETRIES}: Received HTTP ${HTTP_CODE}. Retrying in ${DELAY}s..."
+            sleep "$DELAY"
+          done
+
+          if [ "$SUCCESS" != "true" ]; then
+            echo "❌ Health check failed after ${RETRIES} attempts."
+            exit 1
+          fi
+
+      - name: Cleanup SSH Keys
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

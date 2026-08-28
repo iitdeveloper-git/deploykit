@@ -24,7 +24,7 @@ jobs:
     uses: iitdeveloper-git/shared-workflows/.github/workflows/node-ci.yml@v1
     with:
       node-version: '20'
-      package-manager: 'npm'
+      package-manager: 'npm' # npm, yarn, pnpm, bun
       run-lint: true
       run-test: true
       run-build: true
@@ -109,6 +109,91 @@ jobs:
       environment: 'Production Container'
       status: ${{ needs.docker-publish.result }}
       release_tag: ${{ github.ref_name }}
+    secrets:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+```
+
+---
+
+## 3. End-to-End VPS / Docker Compose Deployment with Health Check & Notifications
+
+```yaml
+name: Production VPS Deployment
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  # 1. CI Validation
+  ci:
+    name: Continuous Integration
+    uses: iitdeveloper-git/shared-workflows/.github/workflows/node-ci.yml@v1
+    with:
+      node-version: '20'
+      package-manager: 'pnpm'
+
+  # 2. Production Security Gate (Blocks on Critical/High)
+  security:
+    name: Security Vulnerability Scan
+    needs: [ci]
+    uses: iitdeveloper-git/shared-workflows/.github/workflows/security-scan.yml@v1
+    with:
+      scan-type: 'fs'
+      severity: 'CRITICAL,HIGH'
+      exit-code: '1'
+
+  # 3. Build Container Image
+  build-container:
+    name: Build Container Image
+    needs: [security]
+    uses: iitdeveloper-git/shared-workflows/.github/workflows/docker-build.yml@v1
+    with:
+      image-name: ghcr.io/${{ github.repository }}
+      push: true
+      tags: |
+        ghcr.io/${{ github.repository }}:${{ github.sha }}
+        ghcr.io/${{ github.repository }}:latest
+    secrets:
+      REGISTRY_USERNAME: ${{ github.actor }}
+      REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+  # 4. Deploy to Remote Server via SSH & Docker Compose
+  deploy:
+    name: Deploy to Production Host
+    needs: [build-container]
+    uses: iitdeveloper-git/shared-workflows/.github/workflows/deploy-ssh-docker.yml@v1
+    with:
+      environment: 'Production'
+      environment-url: 'https://app.example.com'
+      compose-directory: '/opt/app'
+      compose-file: 'docker-compose.prod.yml'
+      image-tag: ${{ github.sha }}
+      health-check-url: 'https://app.example.com/api/health'
+    secrets:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+      REGISTRY_USERNAME: ${{ github.actor }}
+      REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+  # 5. Telegram Status Notification
+  notify:
+    name: Telegram Notification
+    needs: [deploy]
+    if: always()
+    uses: iitdeveloper-git/shared-workflows/.github/workflows/telegram-notify.yml@v1
+    with:
+      app_name: 'Production API'
+      environment: 'Production'
+      status: ${{ needs.deploy.result }}
+      app_url: 'https://app.example.com'
     secrets:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
