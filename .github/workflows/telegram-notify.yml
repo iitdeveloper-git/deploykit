@@ -54,10 +54,10 @@ jobs:
     name: Send Telegram Notification
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Shared Workflows
+      - name: Checkout DeployKit Actions
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          repository: iitdeveloper-git/shared-workflows
+          repository: iitdeveloper-git/deploykit
           ref: v1
           sparse-checkout: |
             actions/telegram-notify

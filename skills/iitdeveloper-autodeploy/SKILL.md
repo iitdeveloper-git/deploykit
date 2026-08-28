@@ -1,8 +1,8 @@
 ---
 name: iitdeveloper-autodeploy
-description: Automatically turn any repository into a secure, production-ready CI/CD project using iitdeveloper-git/shared-workflows@v1. Detects language/framework, reuses shared workflows, enforces least-privilege, and configures environments, SSH Docker deployments, and Telegram notifications.
+description: Automatically turn any repository into a secure, production-ready CI/CD project using DeployKit (iitdeveloper-git/deploykit@v1). Detects language/framework, reuses shared workflows, enforces least-privilege, and configures environments, SSH Docker deployments, and Telegram notifications.
 license: MIT
-version: 1.0.4
+version: 1.0.0
 tags:
   - devops
   - ci-cd
@@ -10,24 +10,25 @@ tags:
   - github-actions
   - docker
   - telegram
+  - deploykit
 ---
 
-# IITDEVELOPER AutoDeploy
+# IITDEVELOPER AutoDeploy (Powered by DeployKit)
 
 Configure repositories using reusable workflows & actions from:
 ```yaml
 # Reusable Workflows:
-uses: iitdeveloper-git/shared-workflows/.github/workflows/<workflow>.yml@v1
+uses: iitdeveloper-git/deploykit/.github/workflows/<workflow>.yml@v1
 
 # Composite Actions:
-uses: iitdeveloper-git/shared-workflows/actions/<action>@v1
+uses: iitdeveloper-git/deploykit/actions/<action>@v1
 ```
 
 ## Goal
 
 Turn any repository into a secure, production-ready CI/CD project with minimal custom workflow code.
 
-**Primary Principle:** Always prefer reusable workflows from `iitdeveloper-git/shared-workflows@v1` over duplicating CI/CD logic inside the application repository. Treat `shared-workflows@v1` as the single source of truth.
+**Primary Principle:** Always prefer reusable workflows from `iitdeveloper-git/deploykit@v1` over duplicating CI/CD logic inside the application repository. Treat `deploykit@v1` as the single source of truth.
 
 ---
 
@@ -45,8 +46,8 @@ Automatically detect the project stack without making assumptions:
 
 ---
 
-### 2. Inspect Shared Workflows Interface (`@v1`)
-Verify available reusable workflows and composite actions from `iitdeveloper-git/shared-workflows@v1`:
+### 2. Inspect DeployKit Interface (`@v1`)
+Verify available reusable workflows and composite actions from `iitdeveloper-git/deploykit@v1`:
 
 | Component | Target Ref | Purpose |
 |---|---|---|
@@ -66,11 +67,11 @@ Verify available reusable workflows and composite actions from `iitdeveloper-git
 ### 3. Reuse Before Creating
 - Prefer:
   ```yaml
-  uses: iitdeveloper-git/shared-workflows/.github/workflows/<workflow>.yml@v1
+  uses: iitdeveloper-git/deploykit/.github/workflows/<workflow>.yml@v1
   ```
   or:
   ```yaml
-  uses: iitdeveloper-git/shared-workflows/actions/<action>@v1
+  uses: iitdeveloper-git/deploykit/actions/<action>@v1
   ```
 - For VPS / Docker Compose projects, use `.github/workflows/deploy-ssh-docker.yml@v1`.
 - For Node.js / Next.js projects, use `.github/workflows/node-ci.yml@v1`.
@@ -118,9 +119,9 @@ Telegram Status Notification
 If `.github/workflows/` already exist:
 1. Audit existing jobs for custom build steps, environment variables, and deployment secrets.
 2. Preserve existing application-specific behavior.
-3. Replace duplicated boilerplate (linting, testing, Docker builds, SSH deployments, notifications) with `shared-workflows@v1`.
+3. Replace duplicated boilerplate (linting, testing, Docker builds, SSH deployments, notifications) with `deploykit@v1`.
 4. Delete old duplicated workflow files only after verifying compatibility.
-5. Purge any legacy references to `iitdeveloper-git-shared-workflows` and update to `shared-workflows@v1`.
+5. Upgrade any legacy references to `iitdeveloper-git/deploykit@v1`.
 
 ---
 
@@ -148,7 +149,7 @@ Before completing the deployment setup:
 
 ### 9. What NOT to Do
 - ❌ Do NOT hardcode credentials or server passwords in workflow files.
-- ❌ Do NOT duplicate shared workflow logic in the caller repo.
+- ❌ Do NOT duplicate DeployKit shared logic in the caller repo.
 - ❌ Do NOT reference non-existent workflows or inputs.
 - ❌ Do NOT use `@main` or `@master` refs.
 - ❌ Do NOT trigger automatic production deployment on unmerged feature branches.
@@ -167,9 +168,9 @@ When completing the auto-deploy setup for a project, always output the report st
 
 * **Stack Detected:** <Language / Framework / Package Manager>
 * **Environments Configured:** <UAT, Production, etc.>
-* **Shared Workflows Used (@v1):**
-  - `iitdeveloper-git/shared-workflows/.github/workflows/...@v1`
-  - `iitdeveloper-git/shared-workflows/actions/telegram-notify@v1`
+* **DeployKit Workflows Used (@v1):**
+  - `iitdeveloper-git/deploykit/.github/workflows/...@v1`
+  - `iitdeveloper-git/deploykit/actions/telegram-notify@v1`
 * **Files Created / Changed:**
   - `.github/workflows/...`
 * **Required GitHub Secrets:**

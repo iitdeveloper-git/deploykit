@@ -1,6 +1,6 @@
 # AutoDeploy Secrets Setup Guide
 
-This guide details the standard secrets required by `iitdeveloper-git/shared-workflows@v1` and deployment jobs.
+This guide details the standard secrets required by **DeployKit** (`iitdeveloper-git/deploykit@v1`) and downstream deployment jobs.
 
 ---
 
@@ -18,9 +18,9 @@ To send deployment and CI status alerts:
 
 ---
 
-## 2. Remote Server Deployment Secrets (SSH / VM)
+## 2. Remote Server Deployment Secrets (SSH / VPS / Docker Compose)
 
-When deploying directly to a Linux server:
+When deploying to a remote host via `deploy-ssh-docker.yml`:
 
 | Secret Name | Level | Description |
 |---|---|---|
@@ -28,12 +28,14 @@ When deploying directly to a Linux server:
 | `DEPLOY_USER` | Repo / Environment | SSH deployment user (e.g. `ubuntu`, `deploy`, `root`). |
 | `DEPLOY_SSH_KEY` | Repo / Environment | Private SSH Key (ed25519 or RSA) with access to `DEPLOY_HOST`. |
 | `DEPLOY_PORT` | Repo / Environment | SSH port (defaults to `22` if omitted). |
+| `REGISTRY_USERNAME` | Repo / Environment | Container registry username (optional). |
+| `REGISTRY_PASSWORD` | Repo / Environment | Container registry password or token (optional). |
 
 ---
 
 ## 3. Container Registry Secrets
 
-When publishing Docker containers:
+When publishing Docker containers via `docker-build.yml`:
 
 | Secret Name | Level | Description |
 |---|---|---|

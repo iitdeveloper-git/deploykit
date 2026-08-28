@@ -16,7 +16,9 @@ body:
         - ".github/workflows/node-ci.yml"
         - ".github/workflows/python-ci.yml"
         - ".github/workflows/docker-build.yml"
+        - ".github/workflows/deploy-ssh-docker.yml"
         - ".github/workflows/security-scan.yml"
+        - "skills/iitdeveloper-autodeploy"
         - "Other"
     validations:
       required: true

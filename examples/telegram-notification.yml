@@ -15,14 +15,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Simulate Deployment
         run: echo "Deploying to production environment..."
 
       - name: 📢 Notify via Telegram Composite Action
         if: always()
-        uses: iitdeveloper-git/shared-workflows/actions/telegram-notify@v1
+        uses: iitdeveloper-git/deploykit/actions/telegram-notify@v1
         with:
           bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           chat_id: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -38,7 +38,7 @@ jobs:
     name: Standalone Telegram Notification
     needs: [deploy]
     if: always()
-    uses: iitdeveloper-git/shared-workflows/.github/workflows/telegram-notify.yml@v1
+    uses: iitdeveloper-git/deploykit/.github/workflows/telegram-notify.yml@v1
     with:
       app_name: 'My Awesome Service'
       environment: 'Production'

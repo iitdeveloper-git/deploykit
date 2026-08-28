@@ -11,7 +11,7 @@ permissions:
 jobs:
   docker-publish:
     name: Build & Push Container Image
-    uses: iitdeveloper-git/shared-workflows/.github/workflows/docker-build.yml@v1
+    uses: iitdeveloper-git/deploykit/.github/workflows/docker-build.yml@v1
     with:
       image-name: ghcr.io/${{ github.repository }}
       push: true

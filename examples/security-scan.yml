@@ -14,7 +14,7 @@ permissions:
 jobs:
   scan:
     name: Repository Security Scan (Production Gate)
-    uses: iitdeveloper-git/shared-workflows/.github/workflows/security-scan.yml@v1
+    uses: iitdeveloper-git/deploykit/.github/workflows/security-scan.yml@v1
     with:
       scan-type: 'fs'
       severity: 'CRITICAL,HIGH'

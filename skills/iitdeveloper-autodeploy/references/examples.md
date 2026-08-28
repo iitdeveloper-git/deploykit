@@ -1,6 +1,6 @@
-# AutoDeploy Pipeline Examples
+# AutoDeploy Pipeline Examples (Powered by DeployKit)
 
-This reference provides drop-in pipeline blueprints configured for `iitdeveloper-git/shared-workflows@v1`.
+This reference provides drop-in pipeline blueprints configured for `iitdeveloper-git/deploykit@v1`.
 
 ---
 
@@ -21,7 +21,7 @@ permissions:
 jobs:
   ci:
     name: Run CI Suite
-    uses: iitdeveloper-git/shared-workflows/.github/workflows/node-ci.yml@v1
+    uses: iitdeveloper-git/deploykit/.github/workflows/node-ci.yml@v1
     with:
       node-version: '20'
       package-manager: 'npm' # npm, yarn, pnpm, bun
@@ -48,7 +48,7 @@ jobs:
 
       - name: 📢 Telegram Notification
         if: always()
-        uses: iitdeveloper-git/shared-workflows/actions/telegram-notify@v1
+        uses: iitdeveloper-git/deploykit/actions/telegram-notify@v1
         with:
           bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           chat_id: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -77,7 +77,7 @@ permissions:
 jobs:
   test:
     name: Test Suite
-    uses: iitdeveloper-git/shared-workflows/.github/workflows/python-ci.yml@v1
+    uses: iitdeveloper-git/deploykit/.github/workflows/python-ci.yml@v1
     with:
       python-version: '3.11'
       requirements-file: 'requirements.txt'
@@ -87,7 +87,7 @@ jobs:
   docker-publish:
     name: Build & Push Container
     needs: [test]
-    uses: iitdeveloper-git/shared-workflows/.github/workflows/docker-build.yml@v1
+    uses: iitdeveloper-git/deploykit/.github/workflows/docker-build.yml@v1
     with:
       image-name: ghcr.io/${{ github.repository }}
       push: true
@@ -103,7 +103,7 @@ jobs:
     name: Notification
     needs: [docker-publish]
     if: always()
-    uses: iitdeveloper-git/shared-workflows/.github/workflows/telegram-notify.yml@v1
+    uses: iitdeveloper-git/deploykit/.github/workflows/telegram-notify.yml@v1
     with:
       app_name: 'Backend API Service'
       environment: 'Production Container'
@@ -133,7 +133,7 @@ jobs:
   # 1. CI Validation
   ci:
     name: Continuous Integration
-    uses: iitdeveloper-git/shared-workflows/.github/workflows/node-ci.yml@v1
+    uses: iitdeveloper-git/deploykit/.github/workflows/node-ci.yml@v1
     with:
       node-version: '20'
       package-manager: 'pnpm'
@@ -142,7 +142,7 @@ jobs:
   security:
     name: Security Vulnerability Scan
     needs: [ci]
-    uses: iitdeveloper-git/shared-workflows/.github/workflows/security-scan.yml@v1
+    uses: iitdeveloper-git/deploykit/.github/workflows/security-scan.yml@v1
     with:
       scan-type: 'fs'
       severity: 'CRITICAL,HIGH'
@@ -152,7 +152,7 @@ jobs:
   build-container:
     name: Build Container Image
     needs: [security]
-    uses: iitdeveloper-git/shared-workflows/.github/workflows/docker-build.yml@v1
+    uses: iitdeveloper-git/deploykit/.github/workflows/docker-build.yml@v1
     with:
       image-name: ghcr.io/${{ github.repository }}
       push: true
@@ -167,7 +167,7 @@ jobs:
   deploy:
     name: Deploy to Production Host
     needs: [build-container]
-    uses: iitdeveloper-git/shared-workflows/.github/workflows/deploy-ssh-docker.yml@v1
+    uses: iitdeveloper-git/deploykit/.github/workflows/deploy-ssh-docker.yml@v1
     with:
       environment: 'Production'
       environment-url: 'https://app.example.com'
@@ -188,7 +188,7 @@ jobs:
     name: Telegram Notification
     needs: [deploy]
     if: always()
-    uses: iitdeveloper-git/shared-workflows/.github/workflows/telegram-notify.yml@v1
+    uses: iitdeveloper-git/deploykit/.github/workflows/telegram-notify.yml@v1
     with:
       app_name: 'Production API'
       environment: 'Production'

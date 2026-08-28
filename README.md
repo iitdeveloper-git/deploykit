@@ -1,13 +1,13 @@
 <p align="center">
-  <img src=".github/assets/banner.jpg" alt="shared-workflows banner" width="100%" />
+  <img src=".github/assets/banner.jpg" alt="DeployKit banner" width="100%" />
 </p>
 
 <p align="center">
-  <a href="https://github.com/iitdeveloper-git/shared-workflows/actions/workflows/ci.yml">
-    <img src="https://img.shields.io/github/actions/workflow/status/iitdeveloper-git/shared-workflows/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI" alt="CI Status" />
+  <a href="https://github.com/iitdeveloper-git/deploykit/actions/workflows/ci.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/iitdeveloper-git/deploykit/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI" alt="CI Status" />
   </a>
-  <a href="https://github.com/iitdeveloper-git/shared-workflows/releases">
-    <img src="https://img.shields.io/github/v/release/iitdeveloper-git/shared-workflows?style=for-the-badge&logo=tag&logoColor=white&label=Release" alt="Release" />
+  <a href="https://github.com/iitdeveloper-git/deploykit/releases">
+    <img src="https://img.shields.io/github/v/release/iitdeveloper-git/deploykit?style=for-the-badge&logo=tag&logoColor=white&label=Release" alt="Release" />
   </a>
   <a href="https://core.telegram.org/bots/api">
     <img src="https://img.shields.io/badge/Telegram_Bot_API-v7-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Bot API" />
@@ -21,8 +21,9 @@
 </p>
 
 <p align="center">
-  <b>Production-grade, reusable GitHub Actions workflows & composite actions for modern engineering teams.</b><br/>
-  Drop-in Telegram notifications, standard CI pipelines, secure container builds, and security scans — zero duplication, zero lock-in.
+  <b>DeployKit by IITDEVELOPER</b><br/>
+  <i>Open-source CI/CD, security, release, and deployment automation for GitHub Actions.</i><br/>
+  Drop-in Telegram notifications, standard CI pipelines, secure container builds, VPS deployments, and vulnerability scanning — zero duplication, zero vendor lock-in.
 </p>
 
 ---
@@ -39,12 +40,14 @@
   - [Python CI (`python-ci.yml`)](#python-ci-python-ciyml)
   - [Docker Build & Publish (`docker-build.yml`)](#docker-build--publish-docker-buildyml)
   - [Security Scan (`security-scan.yml`)](#security-scan-security-scanyml)
-- [🤖 AI Coding Agent AutoDeploy Skill](#-ai-coding-agent-autodeploy-skill)
+  - [SSH Docker Deployment (`deploy-ssh-docker.yml`)](#ssh-docker-deployment-deploy-ssh-dockeryml)
+- [🤖 AutoDeploy Agent Skill](#-autodeploy-agent-skill)
 - [Secrets & Configuration Setup](#-secrets--configuration-setup)
 - [Action Inputs Reference](#-action-inputs-reference)
 - [Versioning & Release Strategy](#-versioning--release-strategy)
 - [Security & Governance](#-security--governance)
 - [Repository Structure](#-repository-structure)
+- [Migration Guide from Shared Workflows](#-migration-guide-from-shared-workflows)
 - [Contributing](#-contributing)
 - [License](#-license)
 
@@ -54,12 +57,13 @@
 
 Maintaining duplicate GitHub Action workflow YAML files across multiple repositories creates maintenance overhead, security drift, and configuration fragmentation.
 
-`iitdeveloper-git/shared-workflows` solves this by providing:
+**DeployKit** solves this by providing:
 
 1. **Centralized Standardization:** Write once, patch once, inherit everywhere.
 2. **Hardened Security & Least Privilege:** Default minimal `permissions: contents: read`, zero secrets logging, and input escaping.
 3. **Pure Standard Library Runtime:** Composite actions rely on pure Python standard library scripts with zero third-party dependencies, reducing third-party runtime supply-chain risk.
 4. **Resilient Notifications:** Telegram notifications support rich HTML formatting, forum topics, Markdown formatting, and automated fallback to plain text if HTML entity parsing encounters malformed text.
+5. **Secure VPS / Docker Deployments:** Parameter-validated Docker Compose updates with SSH host verification and automated post-deployment health check probes.
 
 ```
 ┌────────────────────────────────────────────────────────┐
@@ -70,7 +74,7 @@ Maintaining duplicate GitHub Action workflow YAML files across multiple reposito
           │                  │                  │
           ▼                  ▼                  ▼
 ┌────────────────────────────────────────────────────────┐
-│          iitdeveloper-git/shared-workflows@v1          │
+│             iitdeveloper-git/deploykit@v1              │
 ├────────────────────────────────────────────────────────┤
 │ • actions/telegram-notify (Composite Action)           │
 │ • .github/workflows/telegram-notify.yml (Reusable)    │
@@ -96,7 +100,7 @@ Maintaining duplicate GitHub Action workflow YAML files across multiple reposito
 | [`.github/workflows/docker-build.yml`](.github/workflows/docker-build.yml) | **Reusable Workflow** | Multi-arch Docker container build, tag, and publish with Buildx. |
 | [`.github/workflows/deploy-ssh-docker.yml`](.github/workflows/deploy-ssh-docker.yml) | **Reusable Workflow** | Secure VPS / Docker Compose deployment with health check & rollback safety. |
 | [`.github/workflows/security-scan.yml`](.github/workflows/security-scan.yml) | **Reusable Workflow** | Filesystem and container vulnerability scanning with Trivy. |
-| [`skills/iitdeveloper-autodeploy`](skills/iitdeveloper-autodeploy/) | **Agent Skill** | Antigravity AI skill to configure any repository with `shared-workflows@v1`. |
+| [`skills/iitdeveloper-autodeploy`](skills/iitdeveloper-autodeploy/) | **Agent Skill** | Antigravity AI skill to configure any repository with `deploykit@v1`. |
 
 ---
 
@@ -109,7 +113,7 @@ Add this step to the end of any job in your repository:
 ```yaml
       - name: 📢 Send Telegram Notification
         if: always()
-        uses: iitdeveloper-git/shared-workflows/actions/telegram-notify@v1
+        uses: iitdeveloper-git/deploykit/actions/telegram-notify@v1
         with:
           bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           chat_id: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -151,7 +155,7 @@ Call it as a standalone job after deployment steps complete:
     name: 📢 Telegram Notification
     needs: [deploy]
     if: always()
-    uses: iitdeveloper-git/shared-workflows/.github/workflows/telegram-notify.yml@v1
+    uses: iitdeveloper-git/deploykit/.github/workflows/telegram-notify.yml@v1
     with:
       app_name: 'Payment API'
       environment: 'Production'
@@ -172,7 +176,7 @@ Call it as a standalone job after deployment steps complete:
 ```yaml
 jobs:
   test:
-    uses: iitdeveloper-git/shared-workflows/.github/workflows/node-ci.yml@v1
+    uses: iitdeveloper-git/deploykit/.github/workflows/node-ci.yml@v1
     with:
       node-version: '20'
       package-manager: 'npm' # npm, yarn, pnpm, bun
@@ -186,7 +190,7 @@ jobs:
 ```yaml
 jobs:
   test:
-    uses: iitdeveloper-git/shared-workflows/.github/workflows/python-ci.yml@v1
+    uses: iitdeveloper-git/deploykit/.github/workflows/python-ci.yml@v1
     with:
       python-version: '3.11'
       requirements-file: 'requirements.txt'
@@ -200,7 +204,7 @@ jobs:
 ```yaml
 jobs:
   build-and-push:
-    uses: iitdeveloper-git/shared-workflows/.github/workflows/docker-build.yml@v1
+    uses: iitdeveloper-git/deploykit/.github/workflows/docker-build.yml@v1
     with:
       image-name: ghcr.io/${{ github.repository }}
       push: true
@@ -216,7 +220,7 @@ jobs:
 ```yaml
 jobs:
   security-audit:
-    uses: iitdeveloper-git/shared-workflows/.github/workflows/security-scan.yml@v1
+    uses: iitdeveloper-git/deploykit/.github/workflows/security-scan.yml@v1
     with:
       scan-type: 'fs'
       severity: 'CRITICAL,HIGH'
@@ -228,7 +232,7 @@ jobs:
 ```yaml
 jobs:
   deploy:
-    uses: iitdeveloper-git/shared-workflows/.github/workflows/deploy-ssh-docker.yml@v1
+    uses: iitdeveloper-git/deploykit/.github/workflows/deploy-ssh-docker.yml@v1
     with:
       environment: 'Production'
       environment-url: 'https://app.example.com'
@@ -246,9 +250,9 @@ Check out [`examples/`](examples/) for full end-to-end caller workflow files.
 
 ---
 
-## 🤖 AI Coding Agent AutoDeploy Skill
+## 🤖 AutoDeploy Agent Skill
 
-This repository includes the **`iitdeveloper-autodeploy`** AI Agent skill. Any AI coding assistant (like Antigravity) can use this skill to automatically inspect any repository and configure production CI/CD pipelines powered by `iitdeveloper-git/shared-workflows@v1`.
+DeployKit includes the **`iitdeveloper-autodeploy`** AI Agent skill. Any AI coding assistant (like Antigravity) can use this skill to automatically inspect any repository and configure production CI/CD pipelines powered by `iitdeveloper-git/deploykit@v1`.
 
 ### How to Use with Your Agent:
 
@@ -294,24 +298,24 @@ To enable notifications across all repositories without repetitive manual config
 
 ## 🏷 Versioning & Release Strategy
 
-This repository adheres strictly to [Semantic Versioning (SemVer)](https://semver.org/).
+DeployKit adheres strictly to [Semantic Versioning (SemVer)](https://semver.org/).
 
 ### Recommended Pinning
 
 - **Pinned Major Release (Recommended):**
   ```yaml
-  uses: iitdeveloper-git/shared-workflows/.github/workflows/node-ci.yml@v1
+  uses: iitdeveloper-git/deploykit/.github/workflows/node-ci.yml@v1
   ```
   *Receives backwards-compatible feature updates and security patches automatically.*
 
 - **Pinned Exact Patch (Highest Determinism):**
   ```yaml
-  uses: iitdeveloper-git/shared-workflows/.github/workflows/node-ci.yml@v1.0.3
+  uses: iitdeveloper-git/deploykit/.github/workflows/node-ci.yml@v1.0.0
   ```
 
 - **Pinned Full Commit SHA (Maximum Security & Zero-Trust):**
   ```yaml
-  uses: iitdeveloper-git/shared-workflows/.github/workflows/node-ci.yml@<FULL_COMMIT_SHA>
+  uses: iitdeveloper-git/deploykit/.github/workflows/node-ci.yml@<FULL_COMMIT_SHA>
   ```
 
 ---
@@ -328,7 +332,7 @@ This repository adheres strictly to [Semantic Versioning (SemVer)](https://semve
 ## 📁 Repository Structure
 
 ```
-shared-workflows/
+deploykit/
 ├── .agents/
 │   └── skills/
 │       └── iitdeveloper-autodeploy/    # Workspace AI Agent AutoDeploy skill
@@ -372,7 +376,8 @@ shared-workflows/
 │           └── secrets.md
 ├── tests/
 │   ├── __init__.py
-│   └── test_telegram_send.py           # Unit test suite for Telegram notifications (100% branch coverage)
+│   ├── test_telegram_send.py           # Unit test suite for Telegram notifications (100% branch coverage)
+│   └── test_workflows_schema.py        # Schema & least-privilege security tests
 ├── CHANGELOG.md                        # Semantic release changelog
 ├── CODE_OF_CONDUCT.md                  # Contributor Covenant v2.1
 ├── CONTRIBUTING.md                     # Contribution & local testing guide
@@ -380,6 +385,23 @@ shared-workflows/
 ├── README.md                           # Documentation & quick start guide
 └── SECURITY.md                         # Security and vulnerability reporting policy
 ```
+
+---
+
+## 🔄 Migration Guide from Shared Workflows
+
+DeployKit is the evolution of `iitdeveloper-git/shared-workflows`. To migrate existing application repositories to DeployKit, simply update workflow and action references:
+
+| Old Reference | New DeployKit Reference |
+|---|---|
+| `iitdeveloper-git/shared-workflows/actions/telegram-notify@v1` | `iitdeveloper-git/deploykit/actions/telegram-notify@v1` |
+| `iitdeveloper-git/shared-workflows/.github/workflows/telegram-notify.yml@v1` | `iitdeveloper-git/deploykit/.github/workflows/telegram-notify.yml@v1` |
+| `iitdeveloper-git/shared-workflows/.github/workflows/node-ci.yml@v1` | `iitdeveloper-git/deploykit/.github/workflows/node-ci.yml@v1` |
+| `iitdeveloper-git/shared-workflows/.github/workflows/python-ci.yml@v1` | `iitdeveloper-git/deploykit/.github/workflows/python-ci.yml@v1` |
+| `iitdeveloper-git/shared-workflows/.github/workflows/docker-build.yml@v1` | `iitdeveloper-git/deploykit/.github/workflows/docker-build.yml@v1` |
+| `iitdeveloper-git/shared-workflows/.github/workflows/security-scan.yml@v1` | `iitdeveloper-git/deploykit/.github/workflows/security-scan.yml@v1` |
+
+> **Compatibility Guarantee:** All inputs, secrets, and outputs in DeployKit `@v1` are 100% compatible with `shared-workflows@v1`. Only the repository path needs to be updated.
 
 ---
 

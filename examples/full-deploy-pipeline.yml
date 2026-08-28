@@ -12,7 +12,7 @@ permissions:
 jobs:
   ci:
     name: Continuous Integration
-    uses: iitdeveloper-git/shared-workflows/.github/workflows/node-ci.yml@v1
+    uses: iitdeveloper-git/deploykit/.github/workflows/node-ci.yml@v1
     with:
       node-version: '20'
       package-manager: 'npm'
@@ -25,7 +25,7 @@ jobs:
       release_tag: ${{ steps.version.outputs.tag }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Compute Release Tag
         id: version
@@ -40,7 +40,7 @@ jobs:
     name: Telegram Notification
     needs: [deploy]
     if: always()
-    uses: iitdeveloper-git/shared-workflows/.github/workflows/telegram-notify.yml@v1
+    uses: iitdeveloper-git/deploykit/.github/workflows/telegram-notify.yml@v1
     with:
       app_name: 'Production API Service'
       environment: 'Production'

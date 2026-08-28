@@ -1,6 +1,6 @@
 # Security Policy
 
-`iitdeveloper-git/shared-workflows` is committed to ensuring the security of our reusable workflows, composite actions, and automation tooling for all downstream consumers.
+**DeployKit by IITDEVELOPER** (`iitdeveloper-git/deploykit`) is committed to ensuring the security of our reusable workflows, composite actions, and automation tooling for all downstream consumers.
 
 ---
 
@@ -17,13 +17,13 @@ We provide security updates and bug fixes for the following versions:
 
 ## Security Best Practices for Workflow Consumers
 
-When using shared workflows and composite actions from this repository, we strongly recommend the following practices:
+When using DeployKit workflows and composite actions in your repositories, we strongly recommend:
 
 1. **Pin Versions or Commit SHAs:**
-   Always pin actions/workflows to a major release tag (e.g., `@v1`) or full commit SHA (e.g., `@a236ca765e58fd9887a71647d7688396a20c46e7`) rather than `@main` to prevent unexpected changes.
+   Always pin actions/workflows to a major release tag (e.g., `@v1`) or full commit SHA rather than `@main` to prevent unexpected changes.
    
    ```yaml
-   uses: iitdeveloper-git/shared-workflows/actions/telegram-notify@v1
+   uses: iitdeveloper-git/deploykit/actions/telegram-notify@v1
    ```
 
 2. **Principle of Least Privilege:**
@@ -43,7 +43,7 @@ When using shared workflows and composite actions from this repository, we stron
    ```
 
 4. **Sanitize Inputs:**
-   All scripts in this repository avoid direct shell interpolation of user inputs and utilize standard environment variable bindings and HTML/URI escaping.
+   All scripts in DeployKit avoid direct shell interpolation of user inputs and utilize standard environment variable bindings and HTML/URI escaping.
 
 ---
 

@@ -12,7 +12,7 @@ permissions:
 jobs:
   python-test:
     name: Run Python Tests & Linting
-    uses: iitdeveloper-git/shared-workflows/.github/workflows/python-ci.yml@v1
+    uses: iitdeveloper-git/deploykit/.github/workflows/python-ci.yml@v1
     with:
       python-version: '3.11'
       requirements-file: 'requirements.txt'
