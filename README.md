@@ -57,7 +57,7 @@ Maintaining duplicate GitHub Action workflow YAML files across multiple reposito
 
 1. **Centralized Standardization:** Write once, patch once, inherit everywhere.
 2. **Hardened Security & Least Privilege:** Default minimal `permissions: contents: read`, zero secrets logging, and input escaping.
-3. **Pure Standard Library Runtime:** Composite actions rely on pure Python standard library scripts with zero third-party dependencies, preventing supply chain attacks.
+3. **Pure Standard Library Runtime:** Composite actions rely on pure Python standard library scripts with zero third-party dependencies, reducing third-party runtime supply-chain risk.
 4. **Resilient Notifications:** Telegram notifications support rich HTML formatting, forum topics, Markdown formatting, and automated fallback to plain text if HTML entity parsing encounters malformed text.
 
 ```
