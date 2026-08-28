@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.1] - 2026-08-29
+
+### Security & Hardening
+- **Third-Party Action Pinning:** Pinned all GitHub Actions across reusable workflows (`checkout`, `setup-python`, `setup-node`, `docker`, `trivy-action`, `actionlint`) to immutable full commit SHAs with version comments.
+- **Least Privilege:** Reduced permissions in `security-scan.yml` to `contents: read`.
+- **Dependabot Integration:** Added automated weekly updates for GitHub Actions and Python dependencies.
+- **Coverage Enforcement:** Configured CI to strictly enforce `--branch` and `--fail-under=100` code coverage.
+
+---
+
 ## [1.0.0] - 2026-08-29
 
 ### Added
